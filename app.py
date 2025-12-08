@@ -1,6 +1,6 @@
 import streamlit as st
 import faturamento
-import despesas
+import Despesas
 import resultado
 
 st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
