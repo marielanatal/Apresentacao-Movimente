@@ -13,7 +13,7 @@ st.title("📊 Dashboard Financeiro – Comparativo 2024 x 2025")
 uploaded_file = st.file_uploader("Envie sua planilha Excel", type=["xlsx"])
 
 # Caminho do arquivo padrão no repositório
-ARQUIVO_PADRAO = "faturamento_2024_2025.xlsx"   # << coloque aqui o nome EXATO do arquivo no GitHub
+ARQUIVO_PADRAO = "Consolidado de Faturamento - 2024 e 2025.xlsx"   # << coloque aqui o nome EXATO do arquivo no GitHub
 
 def carregar_planilha():
     """Carrega primeiro o upload; se não existir, tenta arquivo local."""
