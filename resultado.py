@@ -37,14 +37,11 @@ def render():
         12: "12 - Dezembro"
     }
 
-    # Nome do mês padronizado
     df_fat["MES"] = df_fat["MES_NUM"].map(meses_dict)
-
-    # Garantir tipos
     df_fat["Faturamento"] = pd.to_numeric(df_fat["Faturamento - Valor"], errors="coerce")
     df_fat["Ano"] = pd.to_numeric(df_fat["Ano"], errors="coerce")
 
-    # Consolidar faturamento por mês/ano
+    # Consolidação por mês/ano
     fat_mensal = df_fat.groupby(["Ano", "MES_NUM", "MES"])["Faturamento"].sum().reset_index()
 
     # ==================================================================
@@ -61,7 +58,6 @@ def render():
 
     df_desp["MES_NUM"] = df_desp["MÊS"].str[:2].astype(int)
     df_desp["MES"] = df_desp["MES_NUM"].map(meses_dict)
-
     df_desp["ANO"] = pd.to_numeric(df_desp["ANO"], errors="coerce")
     df_desp["VALOR"] = pd.to_numeric(df_desp["VALOR"], errors="coerce")
 
@@ -77,13 +73,18 @@ def render():
         how="left"
     ).fillna(0)
 
-    # Remover colunas duplicadas
-    drop_cols = [c for c in ["ANO"] if c in base.columns]
-    if drop_cols:
-        base = base.drop(columns=drop_cols)
+    # Remover coluna duplicada "ANO"
+    if "ANO" in base.columns:
+        base = base.drop(columns=["ANO"])
+
+    # 🔥 CORREÇÃO DEFINITIVA: garantir coluna MES
+    if "MES_x" in base.columns:
+        base = base.rename(columns={"MES_x": "MES"})
+    if "MES_y" in base.columns:
+        base = base.drop(columns=["MES_y"])
 
     # ==================================================================
-    # 4. CALCULAR RESULTADO E MARGEM
+    # 4. CÁLCULOS
     # ==================================================================
     base["Resultado"] = base["Faturamento"] - base["VALOR"]
 
@@ -95,15 +96,16 @@ def render():
     base["Ano"] = base["Ano"].astype(str)
 
     # ==================================================================
-    # 5. PREPARAR DATAFRAME PARA O GRÁFICO (ESSENCIAL!)
+    # 5. PREPARAR DATAFRAME PARA O GRÁFICO
     # ==================================================================
     plot_df = base.copy()
 
+    # Garantir tipos adequados
     plot_df["MES"] = plot_df["MES"].astype(str)
     plot_df["Resultado"] = pd.to_numeric(plot_df["Resultado"], errors="coerce")
     plot_df["Ano"] = plot_df["Ano"].astype(str)
 
-    # Remover qualquer coluna problemática do merge
+    # Remover possíveis colunas residuais _x e _y
     cols_to_drop = [c for c in plot_df.columns if c.endswith("_x") or c.endswith("_y")]
     if cols_to_drop:
         plot_df = plot_df.drop(columns=cols_to_drop)
@@ -114,7 +116,7 @@ def render():
     st.subheader("📉 Resultado Mensal (Lucro / Prejuízo)")
 
     fig = px.bar(
-        data_frame=plot_df,  # <-- ESSA LINHA EVITA O ERRO DO PLOTLY!
+        data_frame=plot_df,  # <<< ESSENCIAL
         x="MES",
         y="Resultado",
         color="Ano",
@@ -144,4 +146,3 @@ def render():
     tabela["Margem (%)"] = tabela["Margem (%)"].apply(lambda x: f"{x:.1f}%")
 
     st.dataframe(tabela, use_container_width=True)
-
