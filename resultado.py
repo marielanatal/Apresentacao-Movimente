@@ -36,7 +36,12 @@ def render():
     df_desp["ANO"] = df_desp["ANO"].astype(int)
     df_desp["VALOR"] = pd.to_numeric(df_desp["VALOR"], errors="coerce")
 
-    df_desp["MES_NUM"] = df_desp["MÊS"].str[:2].astype(int)
+    # Padronizar nome da coluna de mês para as duas bases
+df_fat["MES"] = df_fat["Mês"]
+df_fat["MES_NUM"] = df_fat["MES"].str[:2].astype(int)
+
+df_desp["MES"] = df_desp["MÊS"]  # fica igual ao faturamento
+df_desp["MES_NUM"] = df_desp["MES"].str[:2].astype(int))
 
     desp_mensal = df_desp.groupby(["ANO", "MÊS", "MES_NUM"])["VALOR"].sum().reset_index()
 
@@ -45,8 +50,8 @@ def render():
     # ------------------------------
     base = fat_mensal.merge(
         desp_mensal,
-        left_on=["Ano", "Mês", "Mes_Num"],
-        right_on=["ANO", "MÊS", "MES_NUM"],
+        left_on=["Ano", "MES", "MES_NUM"],
+        right_on=["ANO", "MES", "MES_NUM"],
         how="left"
     ).fillna(0)
 
