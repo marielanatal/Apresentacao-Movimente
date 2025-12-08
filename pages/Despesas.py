@@ -3,140 +3,109 @@ import pandas as pd
 import plotly.express as px
 import os
 
-st.set_page_config(page_title="Dashboard de Despesas", layout="wide")
+def render():
 
-st.title("💰 Dashboard de Despesas – 2024 x 2025")
-st.markdown("---")
+    st.title("💰 Dashboard de Despesas – 2024 x 2025")
+    st.markdown("---")
 
-# ---------------------------------------------------------
-# 1. Carregar arquivo automaticamente
-# ---------------------------------------------------------
+    FILE_PATH = "./despesas_2024_2025.xlsx"
 
-FILE_PATH = "./despesas_2024_2025.xlsx"
+    if not os.path.exists(FILE_PATH):
+        st.error(f"❌ Arquivo não encontrado: {FILE_PATH}")
+        st.stop()
 
-if not os.path.exists(FILE_PATH):
-    st.error(f"❌ Arquivo não encontrado: {FILE_PATH}")
-    st.stop()
+    df = pd.read_excel(FILE_PATH)
 
-df = pd.read_excel(FILE_PATH)
+    df.columns = df.columns.str.upper().str.replace(" ", "_")
+    df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce").astype(int)
+    df["VALOR"] = pd.to_numeric(df["VALOR"], errors="coerce")
 
-# ---------------------------------------------------------
-# 2. Padronizar colunas
-# ---------------------------------------------------------
-df.columns = df.columns.str.upper().str.replace(" ", "_")
+    total_2024 = df[df["ANO"] == 2024]["VALOR"].sum()
+    total_2025 = df[df["ANO"] == 2025]["VALOR"].sum()
 
-df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce").astype(int)
-df["VALOR"] = pd.to_numeric(df["VALOR"], errors="coerce")
+    dif_percentual = 0
+    if total_2024 > 0:
+        dif_percentual = ((total_2025 - total_2024) / total_2024) * 100
 
-# ---------------------------------------------------------
-# 3. Cards (Modelo A)
-# ---------------------------------------------------------
+    col1, col2, col3, col4 = st.columns(4)
 
-total_2024 = df[df["ANO"] == 2024]["VALOR"].sum()
-total_2025 = df[df["ANO"] == 2025]["VALOR"].sum()
+    col1.metric("💸 Total 2024", f"R$ {total_2024:,.0f}".replace(",", "."))
+    col2.metric("💸 Total 2025", f"R$ {total_2025:,.0f}".replace(",", "."))
+    col3.metric("📉 Diferença % (25 vs 24)", f"{dif_percentual:.1f}%")
+    col4.metric("📊 Média Mensal (Geral)", f"R$ {df['VALOR'].mean():,.0f}".replace(",", "."))
 
-# Diferença percentual
-dif_percentual = 0
-if total_2024 > 0:
-    dif_percentual = ((total_2025 - total_2024) / total_2024) * 100
+    st.markdown("---")
 
-col1, col2, col3, col4 = st.columns(4)
+    st.subheader("🏷️ Despesas por Categoria (RAIZ_PRINCIPAL)")
 
-col1.metric("💸 Total 2024", f"R$ {total_2024:,.0f}".replace(",", "."))
-col2.metric("💸 Total 2025", f"R$ {total_2025:,.0f}".replace(",", "."))
-col3.metric("📉 Diferença % (25 vs 24)", f"{dif_percentual:.1f}%")
-col4.metric("📊 Média Mensal (Geral)", f"R$ {df['VALOR'].mean():,.0f}".replace(",", "."))
+    g1 = df.groupby("RAIZ_PRINCIPAL")["VALOR"].sum().reset_index()
 
-st.markdown("---")
+    fig1 = px.bar(
+        g1,
+        x="VALOR",
+        y="RAIZ_PRINCIPAL",
+        orientation="h",
+        text=g1["VALOR"].apply(lambda x: f"R$ {x:,.0f}".replace(",", ".")),
+        color="RAIZ_PRINCIPAL",
+        color_discrete_sequence=px.colors.qualitative.Set3
+    )
 
-# ---------------------------------------------------------
-# 4. Despesas por RAIZ_PRINCIPAL
-# ---------------------------------------------------------
+    fig1.update_traces(textposition="outside", textfont_size=14)
+    fig1.update_layout(height=500, showlegend=False)
 
-st.subheader("🏷️ Despesas por Categoria (RAIZ_PRINCIPAL)")
+    st.plotly_chart(fig1, use_container_width=True)
 
-g1 = df.groupby("RAIZ_PRINCIPAL")["VALOR"].sum().reset_index()
+    st.markdown("---")
 
-fig1 = px.bar(
-    g1,
-    x="VALOR",
-    y="RAIZ_PRINCIPAL",
-    orientation="h",
-    text=g1["VALOR"].apply(lambda x: f"R$ {x:,.0f}".replace(",", ".")),
-    color="RAIZ_PRINCIPAL",
-    color_discrete_sequence=px.colors.qualitative.Set3
-)
+    st.subheader("🏆 Top 10 Fornecedores por Gasto")
 
-fig1.update_traces(textposition="outside", textfont_size=14)
-fig1.update_layout(height=500, showlegend=False)
+    top = (
+        df.groupby("EMPRESA/PESSOA")["VALOR"]
+        .sum()
+        .reset_index()
+        .sort_values(by="VALOR", ascending=False)
+        .head(10)
+    )
 
-st.plotly_chart(fig1, use_container_width=True)
+    top["VALOR"] = top["VALOR"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
 
-st.markdown("---")
+    st.dataframe(top, hide_index=True)
 
-# ---------------------------------------------------------
-# 5. Top 10 Fornecedores
-# ---------------------------------------------------------
+    st.markdown("---")
 
-st.subheader("🏆 Top 10 Fornecedores por Gasto")
+    st.subheader("📊 Resumo Mensal por Ano")
 
-top = (
-    df.groupby("EMPRESA/PESSOA")["VALOR"]
-    .sum()
-    .reset_index()
-    .sort_values(by="VALOR", ascending=False)
-    .head(10)
-)
+    resumo = df.pivot_table(
+        values="VALOR",
+        index="MÊS",
+        columns="ANO",
+        aggfunc="sum",
+        fill_value=0
+    )
 
-top["VALOR"] = top["VALOR"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+    ordem_meses = [
+        "01 - JANEIRO", "02 - FEVEREIRO", "03 - MARÇO", "04 - ABRIL",
+        "05 - MAIO", "06 - JUNHO", "07 - JULHO", "08 - AGOSTO",
+        "09 - SETEMBRO", "10 - OUTUBRO", "11 - NOVEMBRO", "12 - DEZEMBRO"
+    ]
+    resumo = resumo.reindex(ordem_meses)
 
-st.dataframe(top, hide_index=True)
+    anos = resumo.columns.tolist()
+    if len(anos) == 2:
+        ano_antigo, ano_recente = anos[0], anos[1]
+        resumo["DIFERENÇA (R$)"] = resumo[ano_recente] - resumo[ano_antigo]
+        resumo["VARIAÇÃO (%)"] = (resumo["DIFERENÇA (R$)"] / resumo[ano_antigo]) * 100
+    else:
+        resumo["DIFERENÇA (R$)"] = 0
+        resumo["VARIAÇÃO (%)"] = 0
 
-st.markdown("---")
+    resumo_formatado = resumo.copy()
 
-# ---------------------------------------------------------
-# ---------------------------------------------------------
-# 6. Tabela Resumo por Mês/Ano
-# ---------------------------------------------------------
+    for col in resumo.columns:
+        if col in anos or col == "DIFERENÇA (R$)":
+            resumo_formatado[col] = resumo[col].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+        elif col == "VARIAÇÃO (%)":
+            resumo_formatado[col] = resumo[col].apply(lambda x: f"{x:.1f}%")
 
-st.subheader("📊 Resumo Mensal por Ano")
+    st.dataframe(resumo_formatado, use_container_width=True)
 
-# Tabela base: soma por mês e ano
-resumo = df.pivot_table(
-    values="VALOR",
-    index="MÊS",
-    columns="ANO",
-    aggfunc="sum",
-    fill_value=0
-)
-
-# Ordenar meses (caso estejam embaralhados)
-ordem_meses = [
-    "01 - JANEIRO", "02 - FEVEREIRO", "03 - MARÇO", "04 - ABRIL",
-    "05 - MAIO", "06 - JUNHO", "07 - JULHO", "08 - AGOSTO",
-    "09 - SETEMBRO", "10 - OUTUBRO", "11 - NOVEMBRO", "12 - DEZEMBRO"
-]
-resumo = resumo.reindex(ordem_meses)
-
-# Criar colunas de diferença
-anos = resumo.columns.tolist()
-if len(anos) == 2:
-    ano_antigo, ano_recente = anos[0], anos[1]
-
-    resumo["DIFERENÇA (R$)"] = resumo[ano_recente] - resumo[ano_antigo]
-    resumo["VARIAÇÃO (%)"] = (resumo["DIFERENÇA (R$)"] / resumo[ano_antigo]) * 100
-else:
-    resumo["DIFERENÇA (R$)"] = 0
-    resumo["VARIAÇÃO (%)"] = 0
-
-# FORMATAÇÃO (valores em R$ e %)
-resumo_formatado = resumo.copy()
-
-for col in resumo.columns:
-    if col in anos or col == "DIFERENÇA (R$)":
-        resumo_formatado[col] = resumo[col].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-    elif col == "VARIAÇÃO (%)":
-        resumo_formatado[col] = resumo[col].apply(lambda x: f"{x:.1f}%")
-
-# Exibir tabela
-st.dataframe(resumo_formatado, use_container_width=True)
