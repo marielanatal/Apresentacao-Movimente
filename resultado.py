@@ -73,11 +73,11 @@ def render():
         how="left"
     ).fillna(0)
 
-    # Remover coluna duplicada "ANO"
+    # Remover coluna duplicada
     if "ANO" in base.columns:
         base = base.drop(columns=["ANO"])
 
-    # 🔥 CORREÇÃO DEFINITIVA: garantir coluna MES
+    # Garantir MES
     if "MES_x" in base.columns:
         base = base.rename(columns={"MES_x": "MES"})
     if "MES_y" in base.columns:
@@ -87,7 +87,6 @@ def render():
     # 4. CÁLCULOS
     # ==================================================================
     base["Resultado"] = base["Faturamento"] - base["VALOR"]
-
     base["Margem (%)"] = base.apply(
         lambda row: (row["Resultado"] / row["Faturamento"] * 100) if row["Faturamento"] > 0 else 0,
         axis=1
@@ -96,16 +95,13 @@ def render():
     base["Ano"] = base["Ano"].astype(str)
 
     # ==================================================================
-    # 5. PREPARAR DATAFRAME PARA O GRÁFICO
+    # 5. PREPARAÇÃO DO DF PARA GRÁFICO
     # ==================================================================
     plot_df = base.copy()
-
-    # Garantir tipos adequados
     plot_df["MES"] = plot_df["MES"].astype(str)
     plot_df["Resultado"] = pd.to_numeric(plot_df["Resultado"], errors="coerce")
     plot_df["Ano"] = plot_df["Ano"].astype(str)
 
-    # Remover possíveis colunas residuais _x e _y
     cols_to_drop = [c for c in plot_df.columns if c.endswith("_x") or c.endswith("_y")]
     if cols_to_drop:
         plot_df = plot_df.drop(columns=cols_to_drop)
@@ -116,16 +112,13 @@ def render():
     st.subheader("📉 Resultado Mensal (Lucro / Prejuízo)")
 
     fig = px.bar(
-        data_frame=plot_df,  # <<< ESSENCIAL
+        data_frame=plot_df,
         x="MES",
         y="Resultado",
         color="Ano",
         text=plot_df["Resultado"].apply(lambda x: f"R$ {x:,.0f}".replace(",", ".")),
         barmode="group",
-        color_discrete_map={
-            "2024": "#FF8C00",
-            "2025": "#005BBB"
-        }
+        color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
     )
 
     fig.update_traces(textposition="outside", cliponaxis=False, textfont_size=16)
@@ -134,15 +127,27 @@ def render():
     st.plotly_chart(fig, use_container_width=True)
 
     # ==================================================================
-    # 7. TABELA CONSOLIDADA
+    # 7. TABELA FINAL – MODELO EXIGIDO
     # ==================================================================
-    st.subheader("📄 Tabela Consolidada: Faturamento x Despesas x Margem")
+    st.subheader("📄 Tabela Consolidada – Layout Estilo Planilha")
 
-    tabela = base[["Ano", "MES", "Faturamento", "VALOR", "Resultado", "Margem (%)"]].copy()
+    tabela = base.copy()
+
+    tabela = tabela.rename(columns={
+        "MES": "Mês",
+        "Ano": "Ano",
+        "Faturamento": "Faturamento",
+        "VALOR": "Despesa",
+        "Resultado": "Margem",
+        "Margem (%)": "%"
+    })
+
+    tabela = tabela[["Mês", "Ano", "Faturamento", "Despesa", "Margem", "%"]]
 
     tabela["Faturamento"] = tabela["Faturamento"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-    tabela["VALOR"] = tabela["VALOR"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-    tabela["Resultado"] = tabela["Resultado"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-    tabela["Margem (%)"] = tabela["Margem (%)"].apply(lambda x: f"{x:.1f}%")
+    tabela["Despesa"] = tabela["Despesa"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+    tabela["Margem"] = tabela["Margem"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+    tabela["%"] = tabela["%"].apply(lambda x: f"{x:.1f}%")
 
     st.dataframe(tabela, use_container_width=True)
+
