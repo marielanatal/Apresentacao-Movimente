@@ -26,7 +26,7 @@ if pagina == "📊 Visão de Faturamento":
     faturamento.render()
 
 elif pagina == "💰 Visão de Despesas":
-    despesas.render()
+    Despesas.render()
 
 elif pagina == "🧾 Resultado e Margens":
     resultado.render()
