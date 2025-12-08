@@ -8,9 +8,9 @@ def render():
     st.title("🧾 Resultado e Margens – Receita x Despesas")
     st.markdown("---")
 
-    # ------------------------------
-    # 1. FATURAMENTO
-    # ------------------------------
+    # ------------------------------------------
+    # 1. CARREGAR FATURAMENTO
+    # ------------------------------------------
     fat_path = "Consolidado de Faturamento - 2024 e 2025.xlsx"
 
     if not os.path.exists(fat_path):
@@ -19,9 +19,11 @@ def render():
 
     df_fat = pd.read_excel(fat_path)
 
-    # Extrair número do mês da coluna "Mês"
+    # Extrair numero do mês
     df_fat["MES_NUM"] = df_fat["Mês"].str[:2].astype(int)
-    df_fat["MES"] = df_fat["MES_NUM"].map({
+
+    # Reconstruir nome padronizado do mês
+    meses_dict = {
         1: "01 - Janeiro",
         2: "02 - Fevereiro",
         3: "03 - Março",
@@ -33,16 +35,19 @@ def render():
         9: "09 - Setembro",
         10: "10 - Outubro",
         11: "11 - Novembro",
-        12: "12 - Dezembro",
-    })
+        12: "12 - Dezembro"
+    }
 
+    df_fat["MES"] = df_fat["MES_NUM"].map(meses_dict)
     df_fat["Faturamento"] = pd.to_numeric(df_fat["Faturamento - Valor"], errors="coerce")
+    df_fat["Ano"] = pd.to_numeric(df_fat["Ano"], errors="coerce")
 
+    # Faturamento consolidado por mês/ano
     fat_mensal = df_fat.groupby(["Ano", "MES_NUM", "MES"])["Faturamento"].sum().reset_index()
 
-    # ------------------------------
-    # 2. DESPESAS
-    # ------------------------------
+    # ------------------------------------------
+    # 2. CARREGAR DESPESAS
+    # ------------------------------------------
     desp_path = "despesas_2024_2025.xlsx"
 
     if not os.path.exists(desp_path):
@@ -52,31 +57,19 @@ def render():
     df_desp = pd.read_excel(desp_path)
     df_desp.columns = df_desp.columns.str.upper()
 
-    # Extrair número do mês — MESMO MÉTODO
+    # Extrair número do mês
     df_desp["MES_NUM"] = df_desp["MÊS"].str[:2].astype(int)
-    df_desp["MES"] = df_desp["MES_NUM"].map({
-        1: "01 - Janeiro",
-        2: "02 - Fevereiro",
-        3: "03 - Março",
-        4: "04 - Abril",
-        5: "05 - Maio",
-        6: "06 - Junho",
-        7: "07 - Julho",
-        8: "08 - Agosto",
-        9: "09 - Setembro",
-        10: "10 - Outubro",
-        11: "11 - Novembro",
-        12: "12 - Dezembro",
-    })
+    df_desp["MES"] = df_desp["MES_NUM"].map(meses_dict)
 
-    df_desp["ANO"] = pd.to_numeric(df_desp["ANO"])
+    df_desp["ANO"] = pd.to_numeric(df_desp["ANO"], errors="coerce")
     df_desp["VALOR"] = pd.to_numeric(df_desp["VALOR"], errors="coerce")
 
+    # Somar despesas por mês/ano
     desp_mensal = df_desp.groupby(["ANO", "MES_NUM", "MES"])["VALOR"].sum().reset_index()
 
-    # ------------------------------
-    # 3. MERGE — agora usando MES_NUM (padronizado)
-    # ------------------------------
+    # ------------------------------------------
+    # 3. MERGE — unir faturamento + despesas
+    # ------------------------------------------
     base = fat_mensal.merge(
         desp_mensal,
         left_on=["Ano", "MES_NUM"],
@@ -84,15 +77,22 @@ def render():
         how="left"
     ).fillna(0)
 
-    # ------------------------------
-    # 4. CALCULOS
-    # ------------------------------
+    # ------------------------------------------
+    # 4. CÁLCULOS
+    # ------------------------------------------
     base["Resultado"] = base["Faturamento"] - base["VALOR"]
-    base["Margem (%)"] = base["Resultado"] / base["Faturamento"] * 100
 
-    # ------------------------------
-    # 5. GRÁFICO
-    # ------------------------------
+    base["Margem (%)"] = base.apply(
+        lambda row: (row["Resultado"] / row["Faturamento"] * 100) if row["Faturamento"] > 0 else 0,
+        axis=1
+    )
+
+    # Garantir ano como string para o gráfico funcionar
+    base["Ano"] = base["Ano"].astype(str)
+
+    # ------------------------------------------
+    # 5. GRÁFICO – Resultado Mensal
+    # ------------------------------------------
     st.subheader("📉 Resultado Mensal (Lucro / Prejuízo)")
 
     fig = px.bar(
@@ -102,18 +102,21 @@ def render():
         color="Ano",
         text=base["Resultado"].apply(lambda x: f"R$ {x:,.0f}".replace(",", ".")),
         barmode="group",
-        color_discrete_map={2024: "#FF8C00", 2025: "#005BBB"},
+        color_discrete_map={
+            "2024": "#FF8C00",
+            "2025": "#005BBB"
+        }
     )
 
-    fig.update_traces(textposition="outside", cliponaxis=False)
-    fig.update_layout(height=600)
+    fig.update_traces(textposition="outside", cliponaxis=False, textfont_size=18)
+    fig.update_layout(height=600, plot_bgcolor="white", title="")
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # ------------------------------
-    # 6. TABELA
-    # ------------------------------
-    st.subheader("📄 Tabela Consolidada")
+    # ------------------------------------------
+    # 6. TABELA CONSOLIDADA
+    # ------------------------------------------
+    st.subheader("📄 Tabela Consolidada: Faturamento x Despesas x Margem")
 
     tabela = base[["Ano", "MES", "Faturamento", "VALOR", "Resultado", "Margem (%)"]].copy()
 
@@ -123,3 +126,4 @@ def render():
     tabela["Margem (%)"] = tabela["Margem (%)"].apply(lambda x: f"{x:.1f}%")
 
     st.dataframe(tabela, use_container_width=True)
+
