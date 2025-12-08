@@ -12,7 +12,7 @@ st.markdown("---")
 # 🔹 1. Carregar planilha automaticamente do diretório /pages
 # ---------------------------------------------------------
 
-FILE_PATH = "pages/despesas_2024_2025.xlsx"
+FILE_PATH = "./despesas_2024_2025.xlsx"
 
 if not os.path.exists(FILE_PATH):
     st.error(f"❌ Arquivo não encontrado: {FILE_PATH}")
