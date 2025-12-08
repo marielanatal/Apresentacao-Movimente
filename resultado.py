@@ -18,72 +18,70 @@ def render():
     fat.columns = fat.columns.str.upper()
     desp.columns = desp.columns.str.upper()
 
-    fat["ANO"] = fat["ANO"].astype(int)
-    desp["ANO"] = desp["ANO"].astype(int)
-
-    fat["MÊS"] = fat["MÊS"].astype(str)
-    desp["MÊS"] = desp["MÊS"].astype(str)
-
     fat["FATURAMENTO - VALOR"] = pd.to_numeric(fat["FATURAMENTO - VALOR"], errors="coerce")
     desp["VALOR"] = pd.to_numeric(desp["VALOR"], errors="coerce")
 
     # =============================
-    # 3) AGRUPAR MÊS/ANO
+    # 3) AGRUPAR FATURAMENTO E DESPESAS
     # =============================
     fat_group = fat.groupby(["ANO", "MÊS"])["FATURAMENTO - VALOR"].sum().reset_index()
     desp_group = desp.groupby(["ANO", "MÊS"])["VALOR"].sum().reset_index()
 
     # =============================
-    # 4) JUNTAR FAT + DESPESAS
+    # 4) CRIAR BASE COM TODOS OS MESES POSSÍVEIS
     # =============================
-    base = pd.merge(fat_group, desp_group, on=["ANO", "MÊS"], how="outer")
-    base.rename(columns={"VALOR": "DESPESA", "FATURAMENTO - VALOR": "FATURAMENTO"}, inplace=True)
+    meses = sorted(list(fat_group["MÊS"].unique()))
+    anos = [2024, 2025]
 
-    # Ordenação por mês (01, 02, 03…)
-    base["MES_NUM"] = base["MÊS"].str[:2].astype(int)
-    base = base.sort_values(["MES_NUM", "ANO"])
-
-    # =============================
-    # 5) SEPARAR 2024 E 2025
-    # =============================
-    fat24 = base[base["ANO"] == 2024].set_index("MÊS")[["FATURAMENTO", "DESPESA"]]
-    fat25 = base[base["ANO"] == 2025].set_index("MÊS")[["FATURAMENTO", "DESPESA"]]
+    base = pd.MultiIndex.from_product([anos, meses], names=["ANO", "MÊS"])
+    base = pd.DataFrame(index=base).reset_index()
 
     # =============================
-    # 6) JUNTAR LADO A LADO
+    # 5) JUNTAR DADOS E PREENCHER FALTANTES
     # =============================
+    base = base.merge(fat_group, on=["ANO", "MÊS"], how="left")
+    base = base.merge(desp_group, on=["ANO", "MÊS"], how="left")
+
+    base.rename(columns={
+        "FATURAMENTO - VALOR": "FATURAMENTO",
+        "VALOR": "DESPESA"
+    }, inplace=True)
+
+    base["FATURAMENTO"] = base["FATURAMENTO"].fillna(0)
+    base["DESPESA"] = base["DESPESA"].fillna(0)
+
+    # =============================
+    # 6) GERAR TABELA ANUAL LADO A LADO
+    # =============================
+    fat24 = base[base["ANO"] == 2024].set_index("MÊS")
+    fat25 = base[base["ANO"] == 2025].set_index("MÊS")
+
     tabela = pd.DataFrame()
-    tabela["Mês"] = fat24.index
+    tabela["Mês"] = meses
 
     tabela["Fat 2024"] = fat24["FATURAMENTO"].values
     tabela["Fat 2025"] = fat25["FATURAMENTO"].values
 
     tabela["Var R$"] = tabela["Fat 2025"] - tabela["Fat 2024"]
-    tabela["Var %"] = (tabela["Var R$"] / tabela["Fat 2024"]) * 100
+    tabela["Var %"] = (tabela["Var R$"] / tabela["Fat 2024"].replace(0, pd.NA)) * 100
 
     tabela["Desp 2024"] = fat24["DESPESA"].values
     tabela["Desp 2025"] = fat25["DESPESA"].values
 
-    tabela["Margem 2024"] = (1 - (tabela["Desp 2024"] / tabela["Fat 2024"])) * 100
-    tabela["Margem 2025"] = (1 - (tabela["Desp 2025"] / tabela["Fat 2025"])) * 100
+    tabela["Margem 2024"] = (1 - (tabela["Desp 2024"] / tabela["Fat 2024"].replace(0, pd.NA))) * 100
+    tabela["Margem 2025"] = (1 - (tabela["Desp 2025"] / tabela["Fat 2025"].replace(0, pd.NA))) * 100
 
     # =============================
-    # 7) FORMATAR VISUAL
+    # 7) FORMATAR VISUALMENTE
     # =============================
-    tabela_formatada = tabela.copy()
+    tabela_format = tabela.copy()
 
-    cols_moeda = ["Fat 2024", "Fat 2025", "Var R$", "Desp 2024", "Desp 2025"]
-    cols_pct = ["Var %", "Margem 2024", "Margem 2025"]
+    for col in ["Fat 2024", "Fat 2025", "Var R$", "Desp 2024", "Desp 2025"]:
+        tabela_format[col] = tabela_format[col].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
 
-    for col in cols_moeda:
-        tabela_formatada[col] = tabela_formatada[col].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+    for col in ["Var %", "Margem 2024", "Margem 2025"]:
+        tabela_format[col] = tabela_format[col].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "-")
 
-    for col in cols_pct:
-        tabela_formatada[col] = tabela_formatada[col].apply(lambda x: f"{x:.1f}%")
-
-    # =============================
-    # 8) EXIBIR TABELA
-    # =============================
-    st.dataframe(tabela_formatada, use_container_width=True)
+    st.dataframe(tabela_format, use_container_width=True)
 
 
