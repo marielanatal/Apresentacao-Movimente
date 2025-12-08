@@ -106,7 +106,6 @@ st.dataframe(
 
 st.markdown("---")
 
-# ---------------------------------------------------------
 # --- RESUMO MENSAL POR ANO ---
 
 resumo = df.pivot_table(
