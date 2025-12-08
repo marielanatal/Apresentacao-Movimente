@@ -2,124 +2,102 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ==============================
-# CONFIGURAÇÃO GERAL DA PÁGINA
-# ==============================
-st.set_page_config(layout="wide")
-st.title("💸 Dashboard Estratégico de Despesas – 2024 x 2025")
+# ===============================
+# CONFIGURAÇÃO DA PÁGINA
+# ===============================
+st.set_page_config(page_title="Despesas 2024–2025", layout="wide")
 
-FILE = "despesas_2024_2025.xlsx"
-
-# ==============================
-# 1. CARREGAR A PLANILHA
-# ==============================
-try:
-    df = pd.read_excel(FILE)
-except Exception as e:
-    st.error(f"❌ Erro ao carregar o arquivo `{FILE}`: {e}")
-    st.stop()
-
-# Padronizar nomes das colunas
-df.columns = [c.strip().upper() for c in df.columns]
-
-# Validar colunas obrigatórias
-for col in ["MÊS", "ANO", "VALOR", "RAIZ_PRINCIPAL", "NATUREZA", "EMPRESA/PESSOA"]:
-    if col not in df.columns:
-        st.error(f"❌ A coluna obrigatória '{col}' não existe na planilha.")
-        st.stop()
-
-# Converter tipos
-df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce").astype(int)
-df["VALOR"] = pd.to_numeric(df["VALOR"], errors="coerce").fillna(0)
-df["MÊS"] = df["MÊS"].astype(str)
-
-# Criar coluna NUMérica do mês
-df["MES_NUM"] = df["MÊS"].str[:2].astype(int)
-
-# ==============================
-# 2. KPIs ESTRATÉGICOS
-# ==============================
-col1, col2, col3, col4 = st.columns(4)
-
-total_2024 = df[df["ANO"] == 2024]["VALOR"].sum()
-total_2025 = df[df["ANO"] == 2025]["VALOR"].sum()
-
-var_percentual = ((total_2025 - total_2024) / total_2024 * 100) if total_2024 > 0 else 0
-
-media_mensal_24 = total_2024 / 12
-media_mensal_25 = total_2025 / 12
-
-col1.metric("💰 Total 2024", f"R$ {total_2024:,.0f}".replace(",", "."))
-col2.metric("💰 Total 2025", f"R$ {total_2025:,.0f}".replace(",", "."), f"{var_percentual:.1f}%")
-col3.metric("📆 Média Mensal 2024", f"R$ {media_mensal_24:,.0f}".replace(",", "."))
-col4.metric("📆 Média Mensal 2025", f"R$ {media_mensal_25:,.0f}".replace(",", "."))
-
+st.title("💰 Dashboard de Despesas – 2024 x 2025")
 st.markdown("---")
 
-# ==============================
-# 3. GRÁFICO MENSAL LADO A LADO
-# ==============================
-st.subheader("📊 Comparativo Mensal – 2024 x 2025")
+# ===============================
+# UPLOAD DO ARQUIVO
+# ===============================
+uploaded_file = st.file_uploader("Envie o arquivo de despesas (Excel)", type=["xlsx"])
 
-df_group = df.groupby(["MÊS", "MES_NUM", "ANO"], as_index=False)["VALOR"].sum()
-df_group = df_group.sort_values(["MES_NUM", "ANO"])
+if uploaded_file is None:
+    st.info("📂 Envie o arquivo despesas_2024_2025.xlsx para visualizar o dashboard.")
+    st.stop()
 
-fig = px.bar(
-    df_group,
+# ===============================
+# LEITURA DA PLANILHA
+# ===============================
+df = pd.read_excel(uploaded_file)
+
+# ===============================
+# TRATAMENTO DO DATAFRAME
+# ===============================
+
+# Ajuste robusto do ano (aceita '2024', '2024 ', 'ANO:2024', etc.)
+df["ANO"] = (
+    df["ANO"]
+    .astype(str)
+    .str.extract(r"(\d{4})")  # pega apenas anos com 4 dígitos
+    .astype(float)
+    .astype("Int64")
+)
+
+# Mês como categoria ordenada
+ordem_meses = [
+    "01 - Janeiro","02 - Fevereiro","03 - Março","04 - Abril","05 - Maio","06 - Junho",
+    "07 - Julho","08 - Agosto","09 - Setembro","10 - Outubro","11 - Novembro","12 - Dezembro"
+]
+
+df["MÊS"] = pd.Categorical(df["MÊS"], categories=ordem_meses, ordered=True)
+
+# Garantindo que VALOR é numérico
+df["VALOR"] = pd.to_numeric(df["VALOR"], errors="coerce").fillna(0)
+
+# ===============================
+# VISÃO 1 – DESPESAS POR RAIZ PRINCIPAL
+# ===============================
+
+st.subheader("📌 Despesas por Categoria (RAIZ_PRINCIPAL)")
+
+df_raiz = df.groupby("RAIZ_PRINCIPAL")["VALOR"].sum().reset_index()
+
+if df_raiz.empty:
+    st.warning("⚠️ Nenhum dado encontrado para RAIZ_PRINCIPAL.")
+else:
+    fig1 = px.bar(
+        df_raiz,
+        x="RAIZ_PRINCIPAL",
+        y="VALOR",
+        title="Gasto Total por Categoria",
+        text_auto=".2s",
+        color="RAIZ_PRINCIPAL",
+    )
+
+    fig1.update_layout(showlegend=False, height=450)
+    st.plotly_chart(fig1, use_container_width=True)
+
+
+# ===============================
+# VISÃO 2 – DESPESAS POR MÊS E ANO
+# ===============================
+
+st.subheader("📅 Despesas Mensais – Comparativo 2024 x 2025")
+
+df_mes = df.groupby(["ANO", "MÊS"])["VALOR"].sum().reset_index()
+
+fig2 = px.bar(
+    df_mes,
     x="MÊS",
     y="VALOR",
     color="ANO",
     barmode="group",
-    text=df_group["VALOR"].apply(lambda x: f"{x/1000:.1f}K" if x < 1_000_000 else f"{x/1_000_000:.1f}M"),
-    color_discrete_map={2024: "#FF8C00", 2025: "#005BBB"}
+    text_auto=".2s",
+    title="Comparativo Mensal",
 )
 
-fig.update_traces(
-    textposition="outside",
-    textfont_size=18,
-    cliponaxis=False
-)
-
-fig.update_layout(
-    yaxis_title="Despesas (R$)",
-    height=600,
-    bargap=0.25,
-    plot_bgcolor="white"
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-st.markdown("---")
-
-# ==============================
-# 4. ANÁLISE POR RAIZ PRINCIPAL
-# ==============================
-st.subheader("🏷️ Despesas por Categoria (RAIZ_PRINCIPAL)")
-
-raiz_group = df.groupby("RAIZ_PRINCIPAL")["VALOR"].sum().sort_values(ascending=False)
-
-fig2 = px.bar(
-    raiz_group,
-    orientation="h",
-    text=raiz_group.apply(lambda x: f"R$ {x:,.0f}".replace(",", ".")),
-    color=raiz_group,
-    color_continuous_scale="Blues"
-)
-
-fig2.update_traces(textposition="outside", textfont_size=16)
-fig2.update_layout(height=550)
-
+fig2.update_layout(height=500)
 st.plotly_chart(fig2, use_container_width=True)
 
-# Insight automático
-pct_top1 = raiz_group.iloc[0] / raiz_group.sum() * 100
-st.info(f"🔍 Insight: A categoria **{raiz_group.index[0]}** representa **{pct_top1:.1f}%** de todas as despesas.")
 
-st.markdown("---")
+# ===============================
+# VISÃO 3 – TOP 10 FORNECEDORES POR GASTO
+# ===============================
 
-# ==============================
-# 5. RANKING DE FORNECEDORES
-# ==============================
 st.subheader("🏆 Top 10 Fornecedores por Gasto")
 
 top_forn = (
@@ -127,30 +105,25 @@ top_forn = (
     .sum()
     .sort_values(ascending=False)
     .head(10)
+    .reset_index()
 )
 
-st.dataframe(top_forn.reset_index().style.format({"VALOR": "R$ {:,.2f}".replace(",", ".")}))
+# Formatação segura para Streamlit
+top_forn["VALOR"] = top_forn["VALOR"].apply(
+    lambda x: f"R$ {x:,.2f}".replace(",", ".")
+)
 
-st.markdown("---")
+st.dataframe(top_forn, use_container_width=True)
 
-# ==============================
-# 6. TABELA CONSOLIDADA FINAL
-# ==============================
-st.subheader("📄 Tabela Consolidada – Mês x Ano")
 
-tabela = df.pivot_table(
-    index="MÊS",
-    columns="ANO",
-    values="VALOR",
-    aggfunc="sum",
-    fill_value=0
-).reset_index()
+# ===============================
+# VISÃO 4 – TABELA COMPLETA FORMATADA
+# ===============================
 
-tabela = tabela.sort_values("MÊS")
+st.subheader("📄 Base Completa")
 
-# Formatando tabela
-for col in tabela.columns[1:]:
-    tabela[col] = tabela[col].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+df_show = df.copy()
+df_show["VALOR"] = df_show["VALOR"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "."))
 
-st.dataframe(tabela, use_container_width=True)
+st.dataframe(df_show, use_container_width=True)
 
