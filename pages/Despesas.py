@@ -2,117 +2,88 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Despesas – 2024 e 2025", layout="wide")
+
 st.title("💸 Dashboard de Despesas – 2024 x 2025")
 
-# Nome do arquivo no GitHub
-FILE_NAME = "despesas_2024_2025.xlsx"
+# ==============================
+# 1. Upload do arquivo
+# ==============================
+uploaded_file = st.file_uploader("Envie a planilha de despesas (xlsx)", type="xlsx")
 
-# ===============================
-# CARREGAR A PLANILHA
-# ===============================
-try:
-    df = pd.read_excel(FILE_NAME)
-except:
-    st.error(f"❌ Não foi possível carregar o arquivo **{FILE_NAME}**.")
-    st.stop()
+if uploaded_file:
+    df = pd.read_excel(uploaded_file)
 
-# ===============================
-# AJUSTES DE DADOS
-# ===============================
-df["Ano"] = pd.to_numeric(df["Ano"], errors="coerce").astype(int)
-df["Valor"] = pd.to_numeric(df["Valor"], errors="coerce")
-df["Mes_Num"] = df["Mês"].str[:2].astype(int)
+    # ==============================
+    # 2. Padronizar colunas
+    # ==============================
+    df.columns = [col.strip().upper() for col in df.columns]
 
-# ordenar meses
-df = df.sort_values(["Mes_Num", "Ano"])
+    # Ajuste da coluna ANO
+    if "ANO" not in df.columns:
+        st.error("A coluna 'ANO' não foi encontrada na planilha!")
+        st.stop()
 
-# ===============================
-# FILTROS
-# ===============================
-st.sidebar.header("Filtros")
+    df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce").astype("Int64")
 
-anos = st.sidebar.multiselect(
-    "Selecione os anos:",
-    sorted(df["Ano"].unique()),
-    default=sorted(df["Ano"].unique())
-)
+    # Ajuste da coluna MÊS
+    if "MÊS" not in df.columns:
+        st.error("A coluna 'MÊS' não foi encontrada na planilha!")
+        st.stop()
 
-categorias = st.sidebar.multiselect(
-    "Categoria:",
-    sorted(df["Categoria"].dropna().unique()),
-    default=sorted(df["Categoria"].dropna().unique())
-)
+    # Ajuste da coluna VALOR
+    if "VALOR" not in df.columns:
+        st.error("A coluna 'VALOR' não foi encontrada na planilha!")
+        st.stop()
 
-df_filt = df[df["Ano"].isin(anos) & df["Categoria"].isin(categorias)]
+    df["VALOR"] = pd.to_numeric(df["VALOR"], errors="coerce").fillna(0)
 
-# ===============================
-# CARDS DE RESUMO
-# ===============================
-st.subheader("📌 Resumo por Ano")
+    # ==============================
+    # 3. Tabela dinâmica (despesas por mês x ano)
+    # ==============================
+    tabela = df.pivot_table(
+        values="VALOR",
+        index="MÊS",
+        columns="ANO",
+        aggfunc="sum",
+        fill_value=0
+    ).reset_index()
 
-col1, col2 = st.columns(2)
+    st.subheader("📊 Tabela Resumo por Mês")
+    st.dataframe(tabela.style.format("{:,.2f}"))
 
-for ano, col in zip(sorted(df["Ano"].unique()), [col1, col2]):
-    total = df[df["Ano"] == ano]["Valor"].sum()
-    col.metric(
-        label=f"Total {ano}",
-        value=f"R$ {total:,.0f}".replace(",", ".")
+    # ==============================
+    # 4. Gráfico comparativo lado a lado
+    # ==============================
+    tabela_melt = tabela.melt(id_vars="MÊS", var_name="Ano", value_name="Valor")
+
+    fig = px.bar(
+        tabela_melt,
+        x="MÊS",
+        y="Valor",
+        color="Ano",
+        barmode="group",
+        text="Valor",
+        color_discrete_sequence=["darkorange", "royalblue"],
+        title="Comparativo de Despesas – 2024 x 2025 (Lado a Lado)"
     )
 
-st.markdown("---")
+    # Aumenta o tamanho dos números e formata como moeda
+    fig.update_traces(
+        texttemplate="R$ %{text:,.0f}",
+        textposition="outside",
+        textfont_size=16
+    )
 
-# ===============================
-# GRÁFICO LADO A LADO
-# ===============================
-st.subheader("📊 Comparativo Mensal – 2024 x 2025")
+    fig.update_layout(
+        yaxis_title="Valor (R$)",
+        xaxis_title="Mês",
+        bargap=0.25,
+        title_font_size=24
+    )
 
-df_plot = df.groupby(["Mês", "Mes_Num", "Ano"], as_index=False)["Valor"].sum()
+    st.plotly_chart(fig, use_container_width=True)
 
-fig = px.bar(
-    df_plot,
-    x="Mês",
-    y="Valor",
-    color="Ano",
-    barmode="group",
-    text=df_plot["Valor"].apply(lambda x: f"R$ {x:,.0f}".replace(",", ".")),
-    color_discrete_map={
-        2024: "#FF8C00",   # Laranja
-        2025: "#005BBB",   # Azul
-    }
-)
+else:
+    st.info("📌 Envie o arquivo **despesas_2024_2025.xlsx** para visualizar o dashboard.")
 
-fig.update_traces(
-    textposition="outside",
-    textfont=dict(size=18, color="black"),
-    cliponaxis=False
-)
-
-fig.update_layout(
-    yaxis_title="Despesas (R$)",
-    xaxis_title="Mês",
-    height=650,
-    plot_bgcolor="white",
-    bargap=0.25
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-st.markdown("---")
-
-# ===============================
-# TABELA FINAL
-# ===============================
-st.subheader("📄 Tabela Consolidada por Ano")
-
-tabela = df.pivot_table(
-    index="Mês",
-    columns="Ano",
-    values="Valor",
-    aggfunc="sum",
-    fill_value=0
-)
-
-tabela = tabela.applymap(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-
-st.dataframe(tabela, use_container_width=True)
