@@ -107,20 +107,34 @@ st.dataframe(
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 🔹 7. Tabela resumo por ano e mês
-# ---------------------------------------------------------
+# --- RESUMO MENSAL POR ANO ---
 
-st.subheader("📅 Resumo Mensal por Ano")
-
-pivot = df.pivot_table(
-    values="VALOR",
-    index="MÊS",
+resumo = df.pivot_table(
+    index="MES",
     columns="ANO",
-    aggfunc="sum",
-    fill_value=0
-)
+    values="VALOR",
+    aggfunc="sum"
+).reset_index()
 
-pivot = pivot.applymap(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+# Ordenar meses corretamente
+ordem_meses = [
+    "01 - JANEIRO", "02 - FEVEREIRO", "03 - MARÇO", "04 - ABRIL",
+    "05 - MAIO", "06 - JUNHO", "07 - JULHO", "08 - AGOSTO",
+    "09 - SETEMBRO", "10 - OUTUBRO", "11 - NOVEMBRO", "12 - DEZEMBRO"
+]
+resumo["MES"] = pd.Categorical(resumo["MES"], categories=ordem_meses, ordered=True)
+resumo = resumo.sort_values("MES")
 
-st.dataframe(pivot)
+# Criar novas colunas
+resumo["DIFERENÇA (R$)"] = resumo[2025] - resumo[2024]
+resumo["VARIAÇÃO (%)"] = (resumo["DIFERENÇA (R$)"] / resumo[2024]) * 100
 
+# Formatação para exibição
+resumo_formatado = resumo.copy()
+for col in [2024, 2025, "DIFERENÇA (R$)"]:
+    resumo_formatado[col] = resumo_formatado[col].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+
+resumo_formatado["VARIAÇÃO (%)"] = resumo["VARIAÇÃO (%)"].apply(lambda x: f"{x:.1f}%")
+
+st.markdown("### 📊 Resumo Mensal por Ano")
+st.dataframe(resumo_formatado, use_container_width=True)
