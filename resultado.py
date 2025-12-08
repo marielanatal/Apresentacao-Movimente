@@ -1,154 +1,89 @@
 import streamlit as st
 import pandas as pd
-import os
-import plotly.express as px
 
 def render():
 
-    st.title("🧾 Resultado e Margens – Receita x Despesas")
-    st.markdown("---")
+    st.header("📊 Comparativo Ano x Ano – Faturamento x Despesas x Margem")
+    st.markdown("Comparação direta mês a mês entre 2024 e 2025.")
 
-    # ==================================================================
-    # 1. CARREGAR PLANILHA DE FATURAMENTO
-    # ==================================================================
-    fat_path = "Consolidado de Faturamento - 2024 e 2025.xlsx"
+    # =============================
+    # 1) CARREGAR PLANILHAS
+    # =============================
+    fat = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
+    desp = pd.read_excel("despesas_2024_2025.xlsx")
 
-    if not os.path.exists(fat_path):
-        st.error(f"Arquivo de faturamento não encontrado: {fat_path}")
-        return
+    # =============================
+    # 2) PADRONIZAR COLUNAS
+    # =============================
+    fat.columns = fat.columns.str.upper()
+    desp.columns = desp.columns.str.upper()
 
-    df_fat = pd.read_excel(fat_path)
+    fat["ANO"] = fat["ANO"].astype(int)
+    desp["ANO"] = desp["ANO"].astype(int)
 
-    # Extrair número do mês
-    df_fat["MES_NUM"] = df_fat["Mês"].str[:2].astype(int)
+    fat["MÊS"] = fat["MÊS"].astype(str)
+    desp["MÊS"] = desp["MÊS"].astype(str)
 
-    meses_dict = {
-        1: "01 - Janeiro",
-        2: "02 - Fevereiro",
-        3: "03 - Março",
-        4: "04 - Abril",
-        5: "05 - Maio",
-        6: "06 - Junho",
-        7: "07 - Julho",
-        8: "08 - Agosto",
-        9: "09 - Setembro",
-        10: "10 - Outubro",
-        11: "11 - Novembro",
-        12: "12 - Dezembro"
-    }
+    fat["FATURAMENTO - VALOR"] = pd.to_numeric(fat["FATURAMENTO - VALOR"], errors="coerce")
+    desp["VALOR"] = pd.to_numeric(desp["VALOR"], errors="coerce")
 
-    df_fat["MES"] = df_fat["MES_NUM"].map(meses_dict)
-    df_fat["Faturamento"] = pd.to_numeric(df_fat["Faturamento - Valor"], errors="coerce")
-    df_fat["Ano"] = pd.to_numeric(df_fat["Ano"], errors="coerce")
+    # =============================
+    # 3) AGRUPAR MÊS/ANO
+    # =============================
+    fat_group = fat.groupby(["ANO", "MÊS"])["FATURAMENTO - VALOR"].sum().reset_index()
+    desp_group = desp.groupby(["ANO", "MÊS"])["VALOR"].sum().reset_index()
 
-    # Consolidação por mês/ano
-    fat_mensal = df_fat.groupby(["Ano", "MES_NUM", "MES"])["Faturamento"].sum().reset_index()
+    # =============================
+    # 4) JUNTAR FAT + DESPESAS
+    # =============================
+    base = pd.merge(fat_group, desp_group, on=["ANO", "MÊS"], how="outer")
+    base.rename(columns={"VALOR": "DESPESA", "FATURAMENTO - VALOR": "FATURAMENTO"}, inplace=True)
 
-    # ==================================================================
-    # 2. CARREGAR PLANILHA DE DESPESAS
-    # ==================================================================
-    desp_path = "despesas_2024_2025.xlsx"
+    # Ordenação por mês (01, 02, 03…)
+    base["MES_NUM"] = base["MÊS"].str[:2].astype(int)
+    base = base.sort_values(["MES_NUM", "ANO"])
 
-    if not os.path.exists(desp_path):
-        st.error(f"Arquivo de despesas não encontrado: {desp_path}")
-        return
+    # =============================
+    # 5) SEPARAR 2024 E 2025
+    # =============================
+    fat24 = base[base["ANO"] == 2024].set_index("MÊS")[["FATURAMENTO", "DESPESA"]]
+    fat25 = base[base["ANO"] == 2025].set_index("MÊS")[["FATURAMENTO", "DESPESA"]]
 
-    df_desp = pd.read_excel(desp_path)
-    df_desp.columns = df_desp.columns.str.upper()
+    # =============================
+    # 6) JUNTAR LADO A LADO
+    # =============================
+    tabela = pd.DataFrame()
+    tabela["Mês"] = fat24.index
 
-    df_desp["MES_NUM"] = df_desp["MÊS"].str[:2].astype(int)
-    df_desp["MES"] = df_desp["MES_NUM"].map(meses_dict)
-    df_desp["ANO"] = pd.to_numeric(df_desp["ANO"], errors="coerce")
-    df_desp["VALOR"] = pd.to_numeric(df_desp["VALOR"], errors="coerce")
+    tabela["Fat 2024"] = fat24["FATURAMENTO"].values
+    tabela["Fat 2025"] = fat25["FATURAMENTO"].values
 
-    desp_mensal = df_desp.groupby(["ANO", "MES_NUM", "MES"])["VALOR"].sum().reset_index()
+    tabela["Var R$"] = tabela["Fat 2025"] - tabela["Fat 2024"]
+    tabela["Var %"] = (tabela["Var R$"] / tabela["Fat 2024"]) * 100
 
-    # ==================================================================
-    # 3. MERGE – UNIR FATURAMENTO + DESPESAS
-    # ==================================================================
-    base = fat_mensal.merge(
-        desp_mensal,
-        left_on=["Ano", "MES_NUM"],
-        right_on=["ANO", "MES_NUM"],
-        how="left"
-    ).fillna(0)
+    tabela["Desp 2024"] = fat24["DESPESA"].values
+    tabela["Desp 2025"] = fat25["DESPESA"].values
 
-    # Remover coluna duplicada
-    if "ANO" in base.columns:
-        base = base.drop(columns=["ANO"])
+    tabela["Margem 2024"] = (1 - (tabela["Desp 2024"] / tabela["Fat 2024"])) * 100
+    tabela["Margem 2025"] = (1 - (tabela["Desp 2025"] / tabela["Fat 2025"])) * 100
 
-    # Garantir MES
-    if "MES_x" in base.columns:
-        base = base.rename(columns={"MES_x": "MES"})
-    if "MES_y" in base.columns:
-        base = base.drop(columns=["MES_y"])
+    # =============================
+    # 7) FORMATAR VISUAL
+    # =============================
+    tabela_formatada = tabela.copy()
 
-    # ==================================================================
-    # 4. CÁLCULOS
-    # ==================================================================
-    base["Resultado"] = base["Faturamento"] - base["VALOR"]
-    base["Margem (%)"] = base.apply(
-        lambda row: (row["Resultado"] / row["Faturamento"] * 100) if row["Faturamento"] > 0 else 0,
-        axis=1
-    )
+    cols_moeda = ["Fat 2024", "Fat 2025", "Var R$", "Desp 2024", "Desp 2025"]
+    cols_pct = ["Var %", "Margem 2024", "Margem 2025"]
 
-    base["Ano"] = base["Ano"].astype(str)
+    for col in cols_moeda:
+        tabela_formatada[col] = tabela_formatada[col].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
 
-    # ==================================================================
-    # 5. PREPARAÇÃO DO DF PARA GRÁFICO
-    # ==================================================================
-    plot_df = base.copy()
-    plot_df["MES"] = plot_df["MES"].astype(str)
-    plot_df["Resultado"] = pd.to_numeric(plot_df["Resultado"], errors="coerce")
-    plot_df["Ano"] = plot_df["Ano"].astype(str)
+    for col in cols_pct:
+        tabela_formatada[col] = tabela_formatada[col].apply(lambda x: f"{x:.1f}%")
 
-    cols_to_drop = [c for c in plot_df.columns if c.endswith("_x") or c.endswith("_y")]
-    if cols_to_drop:
-        plot_df = plot_df.drop(columns=cols_to_drop)
-
-    # ==================================================================
-    # 6. GRÁFICO – RESULTADO MENSAL
-    # ==================================================================
-    st.subheader("📉 Resultado Mensal (Lucro / Prejuízo)")
-
-    fig = px.bar(
-        data_frame=plot_df,
-        x="MES",
-        y="Resultado",
-        color="Ano",
-        text=plot_df["Resultado"].apply(lambda x: f"R$ {x:,.0f}".replace(",", ".")),
-        barmode="group",
-        color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
-    )
-
-    fig.update_traces(textposition="outside", cliponaxis=False, textfont_size=16)
-    fig.update_layout(height=600, plot_bgcolor="white")
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    # ==================================================================
-    # 7. TABELA FINAL – MODELO EXIGIDO
-    # ==================================================================
-    st.subheader("📄 Tabela Consolidada – Layout Estilo Planilha")
-
-    tabela = base.copy()
-
-    tabela = tabela.rename(columns={
-        "MES": "Mês",
-        "Ano": "Ano",
-        "Faturamento": "Faturamento",
-        "VALOR": "Despesa",
-        "Resultado": "Margem",
-        "Margem (%)": "%"
-    })
-
-    tabela = tabela[["Mês", "Ano", "Faturamento", "Despesa", "Margem", "%"]]
-
-    tabela["Faturamento"] = tabela["Faturamento"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-    tabela["Despesa"] = tabela["Despesa"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-    tabela["Margem"] = tabela["Margem"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-    tabela["%"] = tabela["%"].apply(lambda x: f"{x:.1f}%")
-
-    st.dataframe(tabela, use_container_width=True)
+    # =============================
+    # 8) EXIBIR TABELA
+    # =============================
+    st.dataframe(tabela_formatada, use_container_width=True)
 
 
