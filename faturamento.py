@@ -66,9 +66,6 @@ fig.update_layout(
     bargroupgap=0.05,
     height=520,
     legend_title="Ano"
-)
-
-    st.plotly_chart(fig, use_container_width=True)
 
     # =============================
     # 4) TABELA COMPARATIVA FINAL
