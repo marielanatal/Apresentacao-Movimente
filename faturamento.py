@@ -44,29 +44,29 @@ def render():
     tabela_mensal = tabela_mensal.sort_values(["Mês_num", "Ano"])
 
     fig = px.bar(
-        tabela_mensal,
-        x="Mês",
-        y="Faturamento - Valor",
-        color="Ano",
-        barmode="group",
-        text_auto=True,
-        color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
-    )
+    tabela_mensal,
+    x="Mês",
+    y="Faturamento - Valor",
+    color="Ano",
+    barmode="group",
+    text_auto=True,
+    color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
+)
 
-    fig.update_layout(
-        xaxis_title="Mês",
-        yaxis_title="Faturamento (R$)",
-        bargap=0.25,
-        bargroupgap=0.05,
-        height=520,
-        legend_title="Ano"
-    )
-
-    fig.update_traces(
+fig.update_traces(
     textposition="outside",
     textfont_size=32,   # <<< AQUI AUMENTA A FONTE
     cliponaxis=False
-    )
+)
+
+fig.update_layout(
+    xaxis_title="Mês",
+    yaxis_title="Faturamento (R$)",
+    bargap=0.25,
+    bargroupgap=0.05,
+    height=520,
+    legend_title="Ano"
+)
 
     st.plotly_chart(fig, use_container_width=True)
 
