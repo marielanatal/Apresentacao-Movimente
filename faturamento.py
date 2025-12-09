@@ -1,4 +1,4 @@
-import streamlit as st
+iimport streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -43,18 +43,18 @@ def render():
         text=tabela_mensal["texto"],
         texttemplate="%{text}",
         textposition="outside",
-        textfont_size=30,
-        cliponaxis= false
+        textfont_size=18,
+        cliponaxis=False
     )
 
     # eixo X categórico para evitar empilhamento escondido
-    fig.update_xaxes(type="category", tickfont_size=20)
-    fig.update_yaxes(tickfont_size=20)
+    fig.update_xaxes(type="category", tickfont_size=16)
+    fig.update_yaxes(tickfont_size=16)
 
     fig.update_layout(
         title="Comparativo Mensal",
         title_x=0.5,
-        margin=dict(l=30, r=20, t=50, b=30),
+        margin=dict(l=20, r=20, t=40, b=20),
     )
 
     st.plotly_chart(fig, use_container_width=True)
