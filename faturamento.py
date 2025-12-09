@@ -101,5 +101,3 @@ if uploaded_file:
     # ============================
     st.subheader("📄 Tabela Comparativa")
     st.dataframe(tabela_formatada, use_container_width=True)
-
-
