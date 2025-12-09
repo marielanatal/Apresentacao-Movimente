@@ -1,72 +1,73 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 
 def render():
 
     st.header("📊 Dashboard Financeiro – Comparativo 2024 x 2025")
 
-    # =============================
-    # 1) CARREGAR PLANILHA
-    # =============================
     df = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
     df.columns = df.columns.str.strip()
     df["Ano"] = df["Ano"].astype(int)
 
-    # =============================
-    # CARDS INICIAIS
-    # =============================
     resumo = df.groupby("Ano")["Faturamento - Valor"].sum()
 
     col1, col2 = st.columns(2)
     col1.metric("Ano 2024", f"R$ {resumo[2024]:,.0f}".replace(",", "."))
     col2.metric("Ano 2025", f"R$ {resumo[2025]:,.0f}".replace(",", "."))
 
-    # =============================
-    # 2) GRÁFICO AGRUPADO SEM EMPILHAR
-    # =============================
+    # ============================
+    # GRÁFICO DEFINITIVO (SEM EMPILHAR)
+    # ============================
     df["Mês_num"] = df["Mês"].str[:2].astype(int)
-
     tabela = df.groupby(["Ano", "Mês_num", "Mês"])["Faturamento - Valor"].sum().reset_index()
-    tabela = tabela.sort_values(["Mês_num", "Ano"])  # ESSENCIAL PARA NÃO EMPILHAR
+    tabela = tabela.sort_values(["Mês_num", "Ano"])
 
-    # Criar texto abreviado
-    def abrev(v):
-        return f"R$ {v/1_000_000:.1f}M"
+    meses = tabela["Mês"].unique()
+    valores_2024 = tabela[tabela["Ano"] == 2024]["Faturamento - Valor"].tolist()
+    valores_2025 = tabela[tabela["Ano"] == 2025]["Faturamento - Valor"].tolist()
 
-    tabela["Label"] = tabela["Faturamento - Valor"].apply(abrev)
+    # Texto formatado
+    label_2024 = [f"R$ {v/1_000_000:.1f}M" for v in valores_2024]
+    label_2025 = [f"R$ {v/1_000_000:.1f}M" for v in valores_2025]
 
-    fig = px.bar(
-        tabela,
-        x="Mês",
-        y="Faturamento - Valor",
-        color="Ano",
-        barmode="group",          # GARANTE LADO A LADO
-        text="Label",             # TEXTO DIRETO NO PX
-        color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
-    )
+    fig = go.Figure()
 
-    # AUMENTAR TAMANHO DO TEXTO SEM PERDER O AGRUPAMENTO
-    fig.update_traces(
+    fig.add_trace(go.Bar(
+        x=meses,
+        y=valores_2024,
+        name="2024",
+        marker_color="#FF8C00",
+        text=label_2024,
         textposition="outside",
-        textfont=dict(size=26, color="black", family="Arial")
-    )
+        textfont=dict(size=18)
+    ))
 
-    # NÃO USAR cliponaxis — isso QUEBRA o agrupamento no Plotly
+    fig.add_trace(go.Bar(
+        x=meses,
+        y=valores_2025,
+        name="2025",
+        marker_color="#005BBB",
+        text=label_2025,
+        textposition="outside",
+        textfont=dict(size=18)
+    ))
+
     fig.update_layout(
+        barmode="group",          # GARANTE LADO A LADO FORÇADO
+        bargap=0.20,              # espaço entre grupos
+        bargroupgap=0.05,         # espaço entre barras do mesmo grupo
         title="Comparativo Mensal",
         title_x=0.5,
-        uniformtext_minsize=26,
-        uniformtext_mode="show",
-        bargap=0.25,              # deixa espaço entre grupos
-        bargroupgap=0.05          # deixa coladas barras do mesmo grupo
+        yaxis_title="Faturamento",
+        height=600
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # =============================
-    # 3) TABELA FINAL
-    # =============================
+    # ============================
+    # TABELA FINAL
+    # ============================
     tabela_final = df.pivot_table(
         index="Mês",
         columns="Ano",
