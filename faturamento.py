@@ -62,7 +62,7 @@ def render():
 
     fig.update_traces(
         textposition="outside",
-        textfont=dict(size=32, family="Arial Black", color="black"),
+        textfont=dict(size=52, family="Arial Black", color="black"),
         cliponaxis=False
     )
 
