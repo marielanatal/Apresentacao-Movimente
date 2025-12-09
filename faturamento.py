@@ -7,10 +7,11 @@ def render():
     st.header("📊 Dashboard Financeiro – Comparativo 2024 x 2025")
 
     # =============================
-    # 1) CARREGAR PLANILHA DIRETO DO REPOSITÓRIO
+    # 1) CARREGAR PLANILHA AUTOMÁTICA DO REPOSITÓRIO
     # =============================
     df = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
 
+    # Padronizar colunas
     df.columns = df.columns.str.strip()
     df["Ano"] = df["Ano"].astype(int)
 
@@ -28,59 +29,56 @@ def render():
     col2.metric("Ano 2025", f"R$ {fat_2025:,.0f}".replace(",", "."))
 
     # =============================
-    # 3) COMPARATIVO MENSAL — GRÁFICO LADO A LADO + NÚMEROS GIGANTES
+    # 3) COMPARATIVO MENSAL
     # =============================
-
     df["Mês_num"] = df["Mês"].str[:2].astype(int)
 
     tabela_mensal = df.groupby(["Ano", "Mês_num", "Mês"])["Faturamento - Valor"].sum().reset_index()
-    tabela_mensal["Ano"] = tabela_mensal["Ano"].astype(str)
+
+    # Ordenar corretamente
     tabela_mensal = tabela_mensal.sort_values(["Mês_num", "Ano"])
-
-    # Rótulos formatados
-    tabela_mensal["label"] = tabela_mensal["Faturamento - Valor"].apply(
-        lambda v: f"{v:,.0f}".replace(",", ".")
-    )
-
-    st.subheader("📊 Comparativo Mensal 2024 x 2025 (Lado a Lado)")
 
     fig = px.bar(
         tabela_mensal,
         x="Mês",
         y="Faturamento - Valor",
         color="Ano",
-        text="label",
         barmode="group",
         color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"},
     )
 
-    # 🔥 TRUQUE PARA OS NÚMEROS FICAREM REALMENTE GRANDES
-    fig.update_traces(
-        textposition="outside",
-        textfont=dict(size=38, family="Arial Black", color="black"),
-        textangle=0,
-        cliponaxis=False
-    )
+    # Remover textos automáticos do Plotly
+    fig.update_traces(text=None)
 
-    # 🔥 IMPEDIR STREAMLIT DE COMPRIMIR O GRÁFICO
+    # ===============================
+    # 🔥 INSERIR TEXTOS GIGANTES COMO ANOTAÇÕES
+    # ===============================
+    annotations = []
+
+    # Agrupar por mês e ano para inserir texto acima de cada barra
+    for _, row in tabela_mensal.iterrows():
+        annotations.append(
+            dict(
+                x=row["Mês"],
+                y=row["Faturamento - Valor"] * 1.02,  # posição acima da barra
+                text=f"{row['Faturamento - Valor']:,.0f}".replace(",", "."),
+                showarrow=False,
+                font=dict(size=38, color="black", family="Arial Black"),
+            )
+        )
+
     fig.update_layout(
-        autosize=False,
-        width=1900,
-        height=900,
-        margin=dict(l=40, r=40, t=120, b=200),
-        bargap=0.20,
-        bargroupgap=0.05,
-        xaxis=dict(tickfont=dict(size=22)),
-        yaxis=dict(tickfont=dict(size=22)),
-        legend=dict(font=dict(size=26)),
+        annotations=annotations,
+        title="Comparativo Mensal",
+        yaxis_title="Faturamento - Valor",
+        xaxis_title="Mês",
     )
 
-    st.plotly_chart(fig, use_container_width=False)
+    st.plotly_chart(fig, use_container_width=True)
 
     # =============================
-    # 4) TABELA COMPARATIVA FINAL + DIFERENÇA
+    # 4) TABELA COMPARATIVA FINAL
     # =============================
-
     tabela = df.pivot_table(
         index="Mês",
         columns="Ano",
@@ -88,6 +86,11 @@ def render():
         aggfunc="sum"
     ).reset_index()
 
+    # Ordenar meses
+    tabela["Mês_num"] = tabela["Mês"].str[:2].astype(int)
+    tabela = tabela.sort_values("Mês_num").drop(columns=["Mês_num"])
+
+    # Criar diferenças
     tabela["Diferença (R$)"] = tabela[2025] - tabela[2024]
     tabela["Diferença (%)"] = (tabela["Diferença (R$)"] / tabela[2024]) * 100
 
@@ -98,5 +101,6 @@ def render():
     tabela_fmt["Diferença (R$)"] = tabela_fmt["Diferença (R$)"].apply(lambda v: f"R$ {v:,.2f}".replace(",", "."))
     tabela_fmt["Diferença (%)"] = tabela_fmt["Diferença (%)"].apply(lambda v: f"{v:.1f}%")
 
-    st.subheader("📄 Tabela Comparativa Final")
+    st.subheader("📄 Tabela Comparativa")
     st.dataframe(tabela_fmt, use_container_width=True)
+
