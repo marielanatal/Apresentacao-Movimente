@@ -162,7 +162,8 @@ c4.markdown(
 
 st.markdown("## 📌 Indicadores por Trimestre")
 
-tabela["Trimestre"] = ((tabela.index.to_series().astype(int) - 1) // 3) + 1
+# Criar coluna de trimestre com base na coluna MÊS
+tabela["Trimestre"] = ((tabela["MÊS"].astype(int) - 1) // 3) + 1
 
 resumo_trim = tabela.groupby("Trimestre").agg({
     "Fat 2024": "sum",
