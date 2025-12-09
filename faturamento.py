@@ -63,7 +63,7 @@ def render():
                 y=row["Faturamento - Valor"] * 1.02,  # posição acima da barra
                 text=f"{row['Faturamento - Valor']:,.0f}".replace(",", "."),
                 showarrow=False,
-                font=dict(size=38, color="black", family="Arial Black"),
+                font=dict(size=15, color="black", family="Arial Black"),
             )
         )
 
