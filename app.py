@@ -3,21 +3,23 @@ import faturamento
 import Despesas
 import resultado
 
-st.sidebar.title("📌 Navegação")
+st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 
+st.sidebar.title("Menu")
 pagina = st.sidebar.radio(
     "Selecione a página:",
-    [
-        "📊 Visão de Faturamento",
-        "💰 Visão de Despesas",
-    ]
+    ["Faturamento", "Despesas", "Resultado"]
 )
 
-if pagina == "📊 Visão de Faturamento":
+if pagina == "Faturamento":
     faturamento.render()
 
-elif pagina == "💰 Visão de Despesas":
+elif pagina == "Despesas":
     Despesas.render()
+
+elif pagina == "Resultado":
+    resultado.render()
+
 
 
 
