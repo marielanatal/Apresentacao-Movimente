@@ -5,29 +5,14 @@ import resultado
 
 st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 
-# ---------------------------
-# MENU LATERAL
-# ---------------------------
-st.sidebar.title("📌 Navegação")
+st.sidebar.title("Menu")
+pagina = st.sidebar.radio("Selecione a página:", ["Faturamento", "Despesas", "Resultado"])
 
-pagina = st.sidebar.radio(
-    "Selecione a página:",
-    [
-        "📊 Visão de Faturamento",
-        "💰 Visão de Despesas",
-        "🧾 Resultado e Margens"
-    ]
-)
-
-# ---------------------------
-# CARREGAR A PÁGINA
-# ---------------------------
-if pagina == "📊 Visão de Faturamento":
+if pagina == "Faturamento":
     faturamento.render()
 
-elif pagina == "💰 Visão de Despesas":
+elif pagina == "Despesas":
     Despesas.render()
 
-elif pagina == "🧾 Resultado e Margens":
+elif pagina == "Resultado":
     resultado.render()
-
