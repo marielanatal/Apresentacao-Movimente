@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+
 
 def render():
     st.header("📊 Comparativo Ano x Ano – Faturamento x Despesas x Margem")
@@ -16,7 +18,7 @@ def render():
     desp.columns = desp.columns.str.upper()
 
     # =============================
-    # 2) CRIAR "MES_NUM" PARA GARANTIR JUNÇÃO SEGURA
+    # 2) CRIAR "MES_NUM" PARA JUNÇÃO SEGURA
     # =============================
     def extrair_mes_num(x):
         try:
@@ -49,7 +51,7 @@ def render():
     )
 
     # =============================
-    # 4) CRIAR TABELA FINAL COM TODOS OS MESES E ANOS
+    # 4) CRIAR TABELA BASE (ANOS X MESES)
     # =============================
     meses = range(1, 13)
     anos = [2024, 2025]
@@ -58,7 +60,7 @@ def render():
     base = pd.DataFrame(index=base).reset_index()
 
     # =============================
-    # 5) JUNTAR FATURAMENTO E DESPESA
+    # 5) JUNTAR FATURAMENTO E DESPESAS
     # =============================
     base = base.merge(fat_group, on=["ANO", "MES_NUM"], how="left")
     base = base.merge(desp_group, on=["ANO", "MES_NUM"], how="left")
@@ -67,13 +69,16 @@ def render():
     base["DESPESA"] = base["DESPESA"].fillna(0)
 
     # =============================
-    # 6) CRIAR TABELA YOY
+    # 6) SEPARAR ANOS
     # =============================
     fat24 = base[base["ANO"] == 2024].set_index("MES_NUM")
     fat25 = base[base["ANO"] == 2025].set_index("MES_NUM")
 
+    # =============================
+    # 7) CRIAR TABELA YOY
+    # =============================
     tabela = pd.DataFrame()
-    tabela["Mês"] = fat24.index
+    tabela["Mês"] = list(meses)
 
     tabela["Fat 2024"] = fat24["FATURAMENTO"].values
     tabela["Fat 2025"] = fat25["FATURAMENTO"].values
@@ -88,7 +93,7 @@ def render():
     tabela["Margem 2025"] = (1 - (tabela["Desp 2025"] / tabela["Fat 2025"].replace(0, pd.NA))) * 100
 
     # =============================
-    # 7) FORMATAR VALORES
+    # 8) FORMATAR PARA EXIBIÇÃO
     # =============================
     def fmt_money(v):
         return f"R$ {v:,.0f}".replace(",", ".")
@@ -103,8 +108,51 @@ def render():
     for col in ["Var %", "Margem 2024", "Margem 2025"]:
         tabela_fmt[col] = tabela_fmt[col].apply(fmt_pct)
 
-    # =============================
-    # 8) EXIBIR
-    # =============================
+    st.subheader("📄 Tabela Comparativa")
     st.dataframe(tabela_fmt, use_container_width=True)
+
+    # ======================================================
+    # 9) GRÁFICO 1 – FATURAMENTO 2024 x 2025
+    # ======================================================
+    st.subheader("📈 Faturamento – Comparação 2024 x 2025")
+
+    fig_fat = px.line(
+        tabela,
+        x="Mês",
+        y=["Fat 2024", "Fat 2025"],
+        markers=True,
+        labels={"value": "R$"},
+        color_discrete_map={"Fat 2024": "#FF8C00", "Fat 2025": "#005BBB"}
+    )
+    st.plotly_chart(fig_fat, use_container_width=True)
+
+    # ======================================================
+    # 10) GRÁFICO 2 – DESPESAS 2024 x 2025
+    # ======================================================
+    st.subheader("💸 Despesas – Comparação 2024 x 2025")
+
+    fig_desp = px.line(
+        tabela,
+        x="Mês",
+        y=["Desp 2024", "Desp 2025"],
+        markers=True,
+        labels={"value": "R$"},
+        color_discrete_map={"Desp 2024": "#C00000", "Desp 2025": "#800000"}
+    )
+    st.plotly_chart(fig_desp, use_container_width=True)
+
+    # ======================================================
+    # 11) GRÁFICO 3 – MARGEM 2024 x 2025
+    # ======================================================
+    st.subheader("📉 Margem (%) – Comparação 2024 x 2025")
+
+    fig_margem = px.line(
+        tabela,
+        x="Mês",
+        y=["Margem 2024", "Margem 2025"],
+        markers=True,
+        labels={"value": "%"},
+        color_discrete_map={"Margem 2024": "#228B22", "Margem 2025": "#006400"}
+    )
+    st.plotly_chart(fig_margem, use_container_width=True)
 
