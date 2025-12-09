@@ -156,3 +156,4 @@ def render():
     )
     st.plotly_chart(fig_margem, use_container_width=True)
 
+
