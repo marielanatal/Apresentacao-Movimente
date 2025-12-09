@@ -1,204 +1,166 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
 
-st.set_page_config(layout="wide")
+# ============================================================
+# 🔹 CARREGAR PLANILHAS AUTOMATICAMENTE
+# ============================================================
 
-# ======================================
-# FUNÇÃO DE FORMATAÇÃO
-# ======================================
+FILE_FAT = "./Consolidado de Faturamento - 2024 e 2025.xlsx"
+FILE_DESP = "./despesas_2024_2025.xlsx"
 
-def format_currency(valor):
-    return f"R$ {valor:,.0f}".replace(",", ".") if pd.notnull(valor) else "R$ 0"
+if not os.path.exists(FILE_FAT):
+    st.error(f"❌ Arquivo de faturamento não encontrado: {FILE_FAT}")
+    st.stop()
 
-def format_percent(valor):
-    return f"{valor:.1f}%" if pd.notnull(valor) else "0%"
+if not os.path.exists(FILE_DESP):
+    st.error(f"❌ Arquivo de despesas não encontrado: {FILE_DESP}")
+    st.stop()
 
-def format_metric(value):
-    """Cor verde quando positivo, vermelho quando negativo."""
-    if pd.isna(value):
-        return "-"
-    color = "green" if value >= 0 else "red"
-    prefix = "+" if value >= 0 else ""
-    return f"<span style='color:{color}; font-weight:bold;'>{prefix}{value:.1f}%</span>"
+fat = pd.read_excel(FILE_FAT)
+desp = pd.read_excel(FILE_DESP)
 
-# ======================================
-# CARREGAR PLANILHAS
-# ======================================
+# Normalizar nomes de colunas
+fat.columns = fat.columns.str.upper().str.replace(" ", "_")
+desp.columns = desp.columns.str.upper().str.replace(" ", "_")
 
-fat = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
-desp = pd.read_excel("despesas_2024_2025.xlsx")
+# ============================================================
+# 🔹 GARANTIR QUE A COLUNA DE MÊS EXISTE E É NUMÉRICA
+# ============================================================
 
-# Normalizar nomes
-fat.columns = fat.columns.str.upper()
-desp.columns = desp.columns.str.upper()
+possiveis_colunas_mes = ["MÊS", "MES", "MÊS_", "MES_"]
+col_mes_fat = None
+col_mes_desp = None
 
-# ======================================
-# AJUSTE DO FATURAMENTO
-# ======================================
+for c in possiveis_colunas_mes:
+    if c in fat.columns:
+        col_mes_fat = c
+    if c in desp.columns:
+        col_mes_desp = c
 
-fat["MÊS"] = fat["MÊS"].astype(str).str.zfill(2)
-fat["MES_ANO"] = fat["MÊS"] + "-" + fat["ANO"].astype(str)
+if col_mes_fat is None:
+    st.error("❌ Planilha de Faturamento não possui coluna de mês válida.")
+    st.stop()
 
-fat_group = fat.groupby(["MÊS", "ANO"]).agg({
-    "FATURAMENTO - VALOR": "sum"
-}).reset_index()
+if col_mes_desp is None:
+    st.error("❌ Planilha de Despesas não possui coluna de mês válida.")
+    st.stop()
 
-fat_pivot = fat_group.pivot(index="MÊS", columns="ANO", values="FATURAMENTO - VALOR").fillna(0)
-fat_pivot.columns = [f"Fat {col}" for col in fat_pivot.columns]
+# Converter "01 - Janeiro" → 1
+fat[col_mes_fat] = fat[col_mes_fat].astype(str).str[:2].astype(int)
+desp[col_mes_desp] = desp[col_mes_desp].astype(str).str[:2].astype(int)
 
-# ======================================
-# AJUSTE DAS DESPESAS
-# ======================================
+# ============================================================
+# 🔹 TRATAR FATURAMENTO
+# ============================================================
 
-desp["MÊS"] = desp["MÊS"].astype(str).str[:2]  # pegar "01", "02", etc.
-desp_group = desp.groupby(["MÊS", "ANO"])["VALOR"].sum().reset_index()
+fat["FATURAMENTO"] = pd.to_numeric(fat["FATURAMENTO_-_VALOR"], errors="coerce")
+fat_resumo = fat.groupby(["ANO", col_mes_fat])["FATURAMENTO"].sum().reset_index()
 
-desp_pivot = desp_group.pivot(index="MÊS", columns="ANO", values="VALOR").fillna(0)
-desp_pivot.columns = [f"Desp {col}" for col in desp_pivot.columns]
+# ============================================================
+# 🔹 TRATAR DESPESAS
+# ============================================================
 
-# ======================================
-# JUNÇÃO FAT + DESP
-# ======================================
+desp["VALOR"] = pd.to_numeric(desp["VALOR"], errors="coerce")
+desp_resumo = desp.groupby(["ANO", col_mes_desp])["VALOR"].sum().reset_index()
 
-tabela = fat_pivot.join(desp_pivot, how="outer").fillna(0)
+# ============================================================
+# 🔹 JUNTAR FATURAMENTO + DESPESAS
+# ============================================================
 
-# Ordenar meses corretamente
-tabela = tabela.sort_index()
-
-# Adicionar nomes dos meses
-map_meses = {
-    "01": "01 - Janeiro", "02": "02 - Fevereiro", "03": "03 - Março",
-    "04": "04 - Abril", "05": "05 - Maio", "06": "06 - Junho",
-    "07": "07 - Julho", "08": "08 - Agosto", "09": "09 - Setembro",
-    "10": "10 - Outubro", "11": "11 - Novembro", "12": "12 - Dezembro"
-}
-tabela["Mês"] = tabela.index.map(map_meses)
-
-# ======================================
-# CÁLCULOS DE RESULTADO E MARGEM
-# ======================================
-
-tabela["Resultado 2024"] = tabela["Fat 2024"] - tabela["Desp 2024"]
-tabela["Resultado 2025"] = tabela["Fat 2025"] - tabela["Desp 2025"]
-
-tabela["Margem 2024"] = (tabela["Resultado 2024"] / tabela["Fat 2024"].replace(0, pd.NA)) * 100
-tabela["Margem 2025"] = (tabela["Resultado 2025"] / tabela["Fat 2025"].replace(0, pd.NA)) * 100
-
-# ======================================
-# EXIBIÇÃO PRINCIPAL
-# ======================================
-
-st.title("📊 Resultado Mensal – Receita, Despesa, Margem e Lucro")
-
-st.write("Comparação direta mês a mês entre 2024 e 2025.")
-
-# Organizar visualmente
-tabela_out = tabela.copy()
-tabela_out = tabela_out[[
-    "Mês",
-    "Fat 2024", "Fat 2025",
-    "Desp 2024", "Desp 2025",
-    "Resultado 2024", "Resultado 2025",
-    "Margem 2024", "Margem 2025",
-]]
-
-# Formatando
-tabela_out["Fat 2024"] = tabela_out["Fat 2024"].apply(format_currency)
-tabela_out["Fat 2025"] = tabela_out["Fat 2025"].apply(format_currency)
-tabela_out["Desp 2024"] = tabela_out["Desp 2024"].apply(format_currency)
-tabela_out["Desp 2025"] = tabela_out["Desp 2025"].apply(format_currency)
-tabela_out["Resultado 2024"] = tabela_out["Resultado 2024"].apply(format_currency)
-tabela_out["Resultado 2025"] = tabela_out["Resultado 2025"].apply(format_currency)
-tabela_out["Margem 2024"] = tabela_out["Margem 2024"].apply(format_percent)
-tabela_out["Margem 2025"] = tabela_out["Margem 2025"].apply(format_percent)
-
-st.dataframe(tabela_out, hide_index=True, use_container_width=True)
-
-# ======================================
-# KPIs ANUAIS
-# ======================================
-
-fat_total_2024 = tabela["Fat 2024"].sum()
-fat_total_2025 = tabela["Fat 2025"].sum()
-desp_total_2024 = tabela["Desp 2024"].sum()
-desp_total_2025 = tabela["Desp 2025"].sum()
-
-lucro_2024 = fat_total_2024 - desp_total_2024
-lucro_2025 = fat_total_2025 - desp_total_2025
-
-margem_2024 = (lucro_2024 / fat_total_2024) * 100
-margem_2025 = (lucro_2025 / fat_total_2025) * 100
-
-fat_yoy_pct = ((fat_total_2025 - fat_total_2024) / fat_total_2024) * 100
-desp_yoy_pct = ((desp_total_2025 - desp_total_2024) / desp_total_2024) * 100
-margem_yoy = margem_2025 - margem_2024
-
-st.markdown("## 📌 Indicadores Gerais (Ano)")
-
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric("Faturamento Total 2024", format_currency(fat_total_2024))
-c1.metric("Faturamento Total 2025", format_currency(fat_total_2025), f"{fat_yoy_pct:.1f}%")
-
-c2.metric("Despesas 2024", format_currency(desp_total_2024))
-c2.metric("Despesas 2025", format_currency(desp_total_2025), f"{desp_yoy_pct:.1f}%")
-
-c3.metric("Lucro 2024", format_currency(lucro_2024))
-c3.metric("Lucro 2025", format_currency(lucro_2025), format_currency(lucro_2025 - lucro_2024))
-
-c4.markdown(
-    f"""
-    <div style="font-size:18px; font-weight:600;">Margem Total 2025</div>
-    <div style="font-size:26px; font-weight:700;">{margem_2025:.1f}%</div>
-    <div>{format_metric(margem_yoy)}</div>
-    """,
-    unsafe_allow_html=True
+tabela = pd.merge(
+    fat_resumo,
+    desp_resumo,
+    left_on=["ANO", col_mes_fat],
+    right_on=["ANO", col_mes_desp],
+    how="left"
 )
 
-# ======================================
-# KPIs POR TRIMESTRE
-# ======================================
+tabela.rename(columns={
+    "FATURAMENTO": "FAT",
+    "VALOR": "DESP"
+}, inplace=True)
 
-st.markdown("## 📌 Indicadores por Trimestre")
+tabela["DESP"] = tabela["DESP"].fillna(0)
 
-# Criar coluna de trimestre com base na coluna MÊS
-tabela["Trimestre"] = ((tabela["MÊS"].astype(int) - 1) // 3) + 1
+# ============================================================
+# 🔹 CALCULAR RESULTADO E MARGEM (%)
+# ============================================================
 
-resumo_trim = tabela.groupby("Trimestre").agg({
-    "Fat 2024": "sum",
-    "Fat 2025": "sum",
-    "Desp 2024": "sum",
-    "Desp 2025": "sum"
+tabela["RESULTADO"] = tabela["FAT"] - tabela["DESP"]
+tabela["MARGEM_%"] = (tabela["RESULTADO"] / tabela["FAT"]) * 100
+
+# ============================================================
+# 🔹 CRIAR COLUNA DE TRIMESTRE (SEM ERRO)
+# ============================================================
+
+tabela["TRIMESTRE"] = ((tabela[col_mes_fat] - 1) // 3) + 1
+
+# ============================================================
+# 🔹 INTERFACE VISUAL
+# ============================================================
+
+st.title("📊 Resultados Consolidados – Faturamento x Despesas x Margem")
+
+# Mostrar tabela formatada
+tabela_show = tabela.copy()
+tabela_show["FAT"] = tabela_show["FAT"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+tabela_show["DESP"] = tabela_show["DESP"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+tabela_show["RESULTADO"] = tabela_show["RESULTADO"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+tabela_show["MARGEM_%"] = tabela_show["MARGEM_%"].apply(lambda x: f"{x:.1f}%")
+
+st.dataframe(tabela_show, use_container_width=True)
+
+# ============================================================
+# 🔹 GRÁFICO DE MARGEM POR MÊS
+# ============================================================
+
+fig_margem = px.line(
+    tabela,
+    x=col_mes_fat,
+    y="MARGEM_%",
+    color="ANO",
+    markers=True,
+    title="📈 Margem Mensal (%) – 2024 x 2025",
+    color_discrete_map={2024: "#228B22", 2025: "#006400"}
+)
+
+st.plotly_chart(fig_margem, use_container_width=True)
+
+# ============================================================
+# 🔹 GRÁFICO DE RESULTADO MENSAL
+# ============================================================
+
+fig_res = px.bar(
+    tabela,
+    x=col_mes_fat,
+    y="RESULTADO",
+    color="ANO",
+    barmode="group",
+    title="💰 Resultado (Lucro / Prejuízo) por Mês",
+    color_discrete_map={2024: "#FF8C00", 2025: "#1E90FF"}
+)
+
+st.plotly_chart(fig_res, use_container_width=True)
+
+# ============================================================
+# 🔹 TABELA TRIMESTRAL
+# ============================================================
+
+st.subheader("📌 Resultados por Trimestre")
+
+tri = tabela.groupby(["ANO", "TRIMESTRE"]).agg({
+    "FAT": "sum",
+    "DESP": "sum",
+    "RESULTADO": "sum",
+    "MARGEM_%": "mean"
 }).reset_index()
 
-resumo_trim["Lucro 2024"] = resumo_trim["Fat 2024"] - resumo_trim["Desp 2024"]
-resumo_trim["Lucro 2025"] = resumo_trim["Fat 2025"] - resumo_trim["Desp 2025"]
-resumo_trim["Margem 2024"] = (resumo_trim["Lucro 2024"] / resumo_trim["Fat 2024"]) * 100
-resumo_trim["Margem 2025"] = (resumo_trim["Lucro 2025"] / resumo_trim["Fat 2025"]) * 100
+tri_show = tri.copy()
+tri_show["FAT"] = tri_show["FAT"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+tri_show["DESP"] = tri_show["DESP"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+tri_show["RESULTADO"] = tri_show["RESULTADO"].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
+tri_show["MARGEM_%"] = tri_show["MARGEM_%"].apply(lambda x: f"{x:.1f}%")
 
-resumo_trim["Var Fat %"] = ((resumo_trim["Fat 2025"] - resumo_trim["Fat 2024"]) / resumo_trim["Fat 2024"]) * 100
-resumo_trim["Var Desp %"] = ((resumo_trim["Desp 2025"] - resumo_trim["Desp 2024"]) / resumo_trim["Desp 2024"]) * 100
-resumo_trim["Var Margem %"] = resumo_trim["Margem 2025"] - resumo_trim["Margem 2024"]
-
-for _, row in resumo_trim.iterrows():
-    tri = int(row["Trimestre"])
-    c1, c2, c3, c4 = st.columns(4)
-
-    c1.metric(f"Faturamento T{tri} 2025", format_currency(row["Fat 2025"]), f"{row['Var Fat %']:.1f}%")
-    c2.metric(f"Despesas T{tri} 2025", format_currency(row["Desp 2025"]), f"{row['Var Desp %']:.1f}%")
-    c3.metric(f"Lucro T{tri} 2025", format_currency(row["Lucro 2025"]))
-    c4.markdown(
-        f"""
-        <div style='font-size:16px; font-weight:600;'>Margem T{tri} 2025</div>
-        <div style='font-size:22px; font-weight:700;'>{row['Margem 2025']:.1f}%</div>
-        <div>{format_metric(row['Var Margem %'])}</div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.markdown("---")
-
-
-
-
+st.dataframe(tri_show, use_container_width=True)
