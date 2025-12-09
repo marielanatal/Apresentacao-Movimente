@@ -7,83 +7,67 @@ def render():
     st.header("📊 Dashboard Financeiro – Comparativo 2024 x 2025")
 
     # =============================
-    # 1) CARREGAR PLANILHA AUTOMÁTICA
+    # 1) CARREGAR PLANILHA AUTOMATICAMENTE
     # =============================
     df = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
 
     # Padronizar colunas
     df.columns = df.columns.str.strip()
     df["Ano"] = df["Ano"].astype(int)
+
+    # Criar coluna numérica do mês
     df["Mês_num"] = df["Mês"].str[:2].astype(int)
 
     # =============================
-    # 2) RESUMO POR ANO (CARDS MELHORADOS)
+    # 2) CARDS DE RESUMO
     # =============================
+
     resumo = df.groupby("Ano")["Faturamento - Valor"].sum().reset_index()
 
     fat_2024 = resumo.loc[resumo["Ano"] == 2024, "Faturamento - Valor"].values[0]
     fat_2025 = resumo.loc[resumo["Ano"] == 2025, "Faturamento - Valor"].values[0]
 
-    variacao = fat_2025 - fat_2024
-    variacao_pct = (variacao / fat_2024) * 100 if fat_2024 > 0 else 0
+    col1, col2 = st.columns(2)
 
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("🟧 Faturamento 2024", f"R$ {fat_2024:,.0f}".replace(",", "."))
-    col2.metric("🟦 Faturamento 2025", f"R$ {fat_2025:,.0f}".replace(",", "."))
-
-    # Exibe variação com cor inteligente
-    col3.metric(
-        "📈 Crescimento vs 2024",
-        f"{variacao_pct:.2f}%",
-        delta=f"R$ {variacao:,.0f}".replace(",", "."),
-    )
+    col1.metric("Total 2024", f"R$ {fat_2024:,.0f}".replace(",", "."))
+    col2.metric("Total 2025", f"R$ {fat_2025:,.0f}".replace(",", "."))
 
     # =============================
-    # # =============================
-# 3) GRÁFICO COMPARATIVO – BARRAS LADO A LADO
-# =============================
-st.subheader("📊 Comparativo Mensal 2024 x 2025 (Lado a Lado)")
+    # 3) GRÁFICO COMPARATIVO LADO A LADO
+    # =============================
 
-# Garantir que Ano é str (se não, plotly empilha)
-tabela_mensal = df.groupby(
-    ["Ano", "Mês_num", "Mês"]
-)["Faturamento - Valor"].sum().reset_index()
+    st.subheader("📊 Comparativo Mensal 2024 x 2025 (Lado a Lado)")
 
-tabela_mensal["Ano"] = tabela_mensal["Ano"].astype(str)
+    tabela_mensal = df.groupby(["Ano", "Mês_num", "Mês"])["Faturamento - Valor"].sum().reset_index()
 
-# Ordenação perfeita
-tabela_mensal = tabela_mensal.sort_values(["Mês_num", "Ano"])
+    tabela_mensal["Ano"] = tabela_mensal["Ano"].astype(str)
+    tabela_mensal = tabela_mensal.sort_values(["Mês_num", "Ano"])
 
-fig = px.bar(
-    tabela_mensal,
-    x="Mês",
-    y="Faturamento - Valor",
-    color="Ano",
-    barmode="group",           # <--- barras lado a lado DE VERDADE
-    text_auto=True,
-    color_discrete_map={
-        "2024": "#FF8C00",
-        "2025": "#005BBB"
-    }
-)
+    fig = px.bar(
+        tabela_mensal,
+        x="Mês",
+        y="Faturamento - Valor",
+        color="Ano",
+        barmode="group",
+        text_auto=True,
+        color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
+    )
 
-fig.update_layout(
-    xaxis_title="Mês",
-    yaxis_title="Faturamento (R$)",
-    bargap=0.25,
-    bargroupgap=0.05,          # <--- força distanciamento
-    height=520,
-    legend_title="Ano"
-)
+    fig.update_layout(
+        xaxis_title="Mês",
+        yaxis_title="Faturamento (R$)",
+        bargap=0.25,
+        bargroupgap=0.05,
+        height=520,
+        legend_title="Ano"
+    )
 
-fig.update_traces(
-    textposition="outside",
-    cliponaxis=False
-)
+    fig.update_traces(
+        textposition="outside",
+        cliponaxis=False
+    )
 
-st.plotly_chart(fig, use_container_width=True)
-
+    st.plotly_chart(fig, use_container_width=True)
 
     # =============================
     # 4) TABELA COMPARATIVA FINAL
@@ -96,10 +80,9 @@ st.plotly_chart(fig, use_container_width=True)
         aggfunc="sum"
     ).reset_index()
 
-    # Ordenar meses
     tabela = tabela.sort_values("Mês")
 
-    # Criar diferenças
+    # Diferenças
     tabela["Diferença (R$)"] = tabela[2025] - tabela[2024]
     tabela["Diferença (%)"] = (tabela["Diferença (R$)"] / tabela[2024]) * 100
 
@@ -112,3 +95,4 @@ st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("📄 Tabela Comparativa")
     st.dataframe(tabela_fmt, use_container_width=True)
+
