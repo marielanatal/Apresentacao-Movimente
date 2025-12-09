@@ -31,54 +31,51 @@ def render():
     # =============================
     # 3) COMPARATIVO MENSAL
     # =============================
+
     df["Mês_num"] = df["Mês"].str[:2].astype(int)
 
     tabela_mensal = df.groupby(["Ano", "Mês_num", "Mês"])["Faturamento - Valor"].sum().reset_index()
 
-    # Ordenar corretamente
+    # Ordenar tabela corretamente
     tabela_mensal = tabela_mensal.sort_values(["Mês_num", "Ano"])
 
+    # Criar gráfico
     fig = px.bar(
         tabela_mensal,
         x="Mês",
         y="Faturamento - Valor",
         color="Ano",
-        barmode="group",
+        text="Faturamento - Valor",
         color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"},
     )
 
-    # Remover textos automáticos do Plotly
-    fig.update_traces(text=None)
+    # Ajustar barras lado a lado (o ponto crucial!)
+    fig.update_layout(barmode="group")
 
-    # ===============================
-    # 🔥 INSERIR TEXTOS GIGANTES COMO ANOTAÇÕES
-    # ===============================
-    annotations = []
-
-    # Agrupar por mês e ano para inserir texto acima de cada barra
-    for _, row in tabela_mensal.iterrows():
-        annotations.append(
-            dict(
-                x=row["Mês"],
-                y=row["Faturamento - Valor"] * 1.02,  # posição acima da barra
-                text=f"{row['Faturamento - Valor']:,.0f}".replace(",", "."),
-                showarrow=False,
-                font=dict(size=15, color="black", family="Arial Black"),
-            )
-        )
-
-    fig.update_layout(
-        annotations=annotations,
-        title="Comparativo Mensal",
-        yaxis_title="Faturamento - Valor",
-        xaxis_title="Mês",
+    # Aumentar fonte dos números acima das barras
+    fig.update_traces(
+        texttemplate="%{text:.0f}",
+        textposition="outside",
+        textfont_size=20
     )
 
+    # Aumentar tamanho dos eixos
+    fig.update_layout(
+        yaxis_title="",
+        xaxis_title="",
+        title_x=0.5,
+        margin=dict(l=20, r=20, t=40, b=20),
+        xaxis_tickfont_size=16,
+        yaxis_tickfont_size=16
+    )
+
+    st.subheader("📈 Comparativo Mensal")
     st.plotly_chart(fig, use_container_width=True)
 
     # =============================
     # 4) TABELA COMPARATIVA FINAL
     # =============================
+
     tabela = df.pivot_table(
         index="Mês",
         columns="Ano",
@@ -86,15 +83,13 @@ def render():
         aggfunc="sum"
     ).reset_index()
 
-    # Ordenar meses
-    tabela["Mês_num"] = tabela["Mês"].str[:2].astype(int)
-    tabela = tabela.sort_values("Mês_num").drop(columns=["Mês_num"])
+    tabela = tabela.sort_values("Mês")
 
     # Criar diferenças
     tabela["Diferença (R$)"] = tabela[2025] - tabela[2024]
     tabela["Diferença (%)"] = (tabela["Diferença (R$)"] / tabela[2024]) * 100
 
-    # Formatação
+    # Formatação dos números
     tabela_fmt = tabela.copy()
     tabela_fmt[2024] = tabela_fmt[2024].apply(lambda v: f"R$ {v:,.2f}".replace(",", "."))
     tabela_fmt[2025] = tabela_fmt[2025].apply(lambda v: f"R$ {v:,.2f}".replace(",", "."))
