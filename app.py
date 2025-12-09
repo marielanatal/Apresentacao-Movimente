@@ -12,7 +12,7 @@ pagina = st.sidebar.radio(
 )
 
 if pagina == "Faturamento":
-    faturamento.render()
+    import faturamento
 
 elif pagina == "Despesas":
     Despesas.render()
