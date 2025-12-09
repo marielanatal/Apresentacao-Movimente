@@ -10,7 +10,6 @@ pagina = st.sidebar.radio(
     [
         "📊 Visão de Faturamento",
         "💰 Visão de Despesas",
-        "🧾 Resultado e Margens"
     ]
 )
 
@@ -20,8 +19,6 @@ if pagina == "📊 Visão de Faturamento":
 elif pagina == "💰 Visão de Despesas":
     Despesas.render()
 
-elif pagina == "🧾 Resultado e Margens":
-    resultado.render()
 
 
 elif pagina == "🧾 Resultado e Margens":
