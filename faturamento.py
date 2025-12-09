@@ -43,13 +43,13 @@ def render():
         text=tabela_mensal["texto"],
         texttemplate="%{text}",
         textposition="outside",
-        textfont_size=100,
+        textfont_size=18,
         cliponaxis=False
     )
 
     # eixo X categórico para evitar empilhamento escondido
-    fig.update_xaxes(type="category", tickfont_size=16)
-    fig.update_yaxes(tickfont_size=16)
+    fig.update_xaxes(type="category", tickfont_size=30)
+    fig.update_yaxes(tickfont_size=30)
 
     fig.update_layout(
         title="Comparativo Mensal",
