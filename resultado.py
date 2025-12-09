@@ -142,18 +142,26 @@ def render():
     st.plotly_chart(fig_desp, use_container_width=True)
 
     # ======================================================
-    # 11) GRÁFICO 3 – MARGEM 2024 x 2025
-    # ======================================================
-    st.subheader("📉 Margem (%) – Comparação 2024 x 2025")
+# 11) GRÁFICO 3 – MARGEM 2024 x 2025 (corrigido)
+# ======================================================
+st.subheader("📉 Margem (%) – Comparação 2024 x 2025")
 
-    fig_margem = px.line(
-        tabela,
-        x="Mês",
-        y=["Margem 2024", "Margem 2025"],
-        markers=True,
-        labels={"value": "%"},
-        color_discrete_map={"Margem 2024": "#228B22", "Margem 2025": "#006400"}
-    )
-    st.plotly_chart(fig_margem, use_container_width=True)
+# dataframe numérico para gráficos
+tabela_graf = tabela.copy()
+
+# garantir que tudo é número
+tabela_graf["Margem 2024"] = pd.to_numeric(tabela_graf["Margem 2024"], errors="coerce")
+tabela_graf["Margem 2025"] = pd.to_numeric(tabela_graf["Margem 2025"], errors="coerce")
+
+fig_margem = px.line(
+    tabela_graf,
+    x="Mês",
+    y=["Margem 2024", "Margem 2025"],
+    markers=True,
+    labels={"value": "%"},
+    color_discrete_map={"Margem 2024": "#228B22", "Margem 2025": "#006400"},
+)
+
+st.plotly_chart(fig_margem, use_container_width=True)
 
 
