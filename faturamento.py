@@ -27,37 +27,48 @@ def render():
     tabela_mensal = df.groupby(["Ano", "Mês_num", "Mês"])["Faturamento - Valor"].sum().reset_index()
 
     # =============== GRÁFICO ==================
-    fig = px.bar(
-        tabela_mensal,
-        x="Mês",
-        y="Faturamento - Valor",
-        color="Ano",
-        barmode="group",   # <----- GARANTE LADO A LADO
-        color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"},
-    )
 
-    # Texto formatado em R$
-    tabela_mensal["texto"] = tabela_mensal["Faturamento - Valor"].apply(lambda v: f"R$ {v:,.0f}".replace(",", "."))
+# Criar texto abreviado
+def abreviar(valor):
+    if valor >= 1_000_000:
+        return f"R$ {valor/1_000_000:.1f}M"
+    elif valor >= 1_000:
+        return f"R$ {valor/1_000:.1f}K"
+    else:
+        return f"R$ {valor:.0f}"
 
-    fig.update_traces(
-        text=tabela_mensal["texto"],
-        texttemplate="%{text}",
-        textposition="outside",
-        textfont_size=18,
-        cliponaxis=False
-    )
+tabela_mensal["texto"] = tabela_mensal["Faturamento - Valor"].apply(abreviar)
 
-    # eixo X categórico para evitar empilhamento escondido
-    fig.update_xaxes(type="category", tickfont_size=16)
-    fig.update_yaxes(tickfont_size=16)
+fig = px.bar(
+    tabela_mensal,
+    x="Mês",
+    y="Faturamento - Valor",
+    color="Ano",
+    barmode="group",
+    color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"},
+)
 
-    fig.update_layout(
-        title="Comparativo Mensal",
-        title_x=0.5,
-        margin=dict(l=20, r=20, t=40, b=20),
-    )
+fig.update_traces(
+    text=tabela_mensal["texto"],
+    texttemplate="%{text}",
+    textposition="outside",
+    textfont=dict(size=28, color="black", family="Arial Black"),
+    cliponaxis=False
+)
 
-    st.plotly_chart(fig, use_container_width=True)
+fig.update_layout(
+    title="Comparativo Mensal",
+    title_x=0.5,
+    margin=dict(l=20, r=20, t=40, b=20),
+    uniformtext_minsize=28,
+    uniformtext_mode="show",
+)
+
+fig.update_xaxes(type="category", tickfont_size=16)
+fig.update_yaxes(tickfont_size=16)
+
+st.plotly_chart(fig, use_container_width=True)
+
 
     # =============== TABELA FINAL ==================
     tabela = df.pivot_table(
