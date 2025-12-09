@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-
 def render():
     st.header("📊 Comparativo Ano x Ano – Faturamento x Despesas x Margem")
     st.markdown("Comparação direta mês a mês entre 2024 e 2025.")
@@ -167,3 +166,4 @@ def render():
     )
 
     st.plotly_chart(fig_margem, use_container_width=True)
+
