@@ -63,8 +63,9 @@ def render():
     )
 
     fig.update_traces(
-        textposition="outside",
-        cliponaxis=False
+    textposition="outside",
+    textfont_size=22,   # <<< AQUI AUMENTA A FONTE
+    cliponaxis=False
     )
 
     st.plotly_chart(fig, use_container_width=True)
