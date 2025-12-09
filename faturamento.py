@@ -1,68 +1,104 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import os
 
-def render():
-    st.title("📊 Dashboard Financeiro – Comparativo 2024 x 2025")
+st.header("📊 Dashboard Financeiro – Comparativo 2024 x 2025")
 
-    uploaded_file = st.file_uploader("Envie sua planilha Excel", type=["xlsx"])
-    ARQUIVO_PADRAO = "Consolidado de Faturamento - 2024 e 2025.xlsx"
+uploaded_file = st.file_uploader("Envie sua planilha Excel", type=["xlsx"])
 
-    def carregar():
-        if uploaded_file:
-            return pd.read_excel(uploaded_file)
-        if os.path.exists(ARQUIVO_PADRAO):
-            return pd.read_excel(ARQUIVO_PADRAO)
-        return None
+if uploaded_file:
 
-    df = carregar()
+    # ============================
+    # CARREGAR PLANILHA
+    # ============================
+    df = pd.read_excel(uploaded_file)
 
-    if df is None:
-        st.warning("Envie ou carregue o arquivo padrão.")
-        return
-
+    # Nome das colunas deve seguir o seu padrão:
+    # "Ano", "Mês", "Valor"
     df["Ano"] = df["Ano"].astype(int)
-    df["Mes_Num"] = df["Mês"].str[:2].astype(int)
-    df["Faturamento - Valor"] = pd.to_numeric(df["Faturamento - Valor"], errors="coerce")
-    df["Meta"] = pd.to_numeric(df["Meta"], errors="coerce")
 
-    def fmt(v):
-        if v >= 1_000_000: return f"{v/1_000_000:.1f}M"
-        if v >= 1_000: return f"{v/1_000:.1f}K"
-        return str(v)
+    # Separar 2024 e 2025
+    df_2024 = df[df["Ano"] == 2024]
+    df_2025 = df[df["Ano"] == 2025]
 
-    st.subheader("Resumo por Ano")
+    total_2024 = df_2024["Valor"].sum()
+    total_2025 = df_2025["Valor"].sum()
+
+    # ============================
+    # MOSTRAR RESUMO ANUAL
+    # ============================
     col1, col2 = st.columns(2)
 
-    for ano, coluna in zip([2024, 2025], [col1, col2]):
-        dados = df[df["Ano"] == ano]
-        fat = dados["Faturamento - Valor"].sum()
-        meta = dados["Meta"].sum()
-        perc = (fat/meta*100) if meta>0 else 0
+    with col1:
+        st.subheader("Ano 2024")
+        st.metric("Total Faturado", f"R$ {total_2024:,.0f}".replace(",", "."))
+    
+    with col2:
+        st.subheader("Ano 2025")
+        st.metric("Total Faturado", f"R$ {total_2025:,.0f}".replace(",", "."))
 
-        coluna.metric(
-            f"Ano {ano}",
-            f"R$ {fat:,.0f}".replace(",", "."),
-            f"{perc:.1f}% da Meta"
-        )
+    # ============================
+    # PREPARAR DADOS MENSALIZADOS
+    # ============================
+    pivot = df.pivot_table(values="Valor", index="Mês", columns="Ano", aggfunc="sum")
 
-    df_plot = df.groupby(["Mês","Mes_Num","Ano"])["Faturamento - Valor"].sum().reset_index()
-    df_plot["Valor_fmt"] = df_plot["Faturamento - Valor"].apply(fmt)
-    df_plot["Ano"] = df_plot["Ano"].astype(str)
+    # Garantir ordem correta dos meses
+    ordem_meses = [
+        "01 - Janeiro", "02 - Fevereiro", "03 - Março", "04 - Abril",
+        "05 - Maio", "06 - Junho", "07 - Julho", "08 - Agosto",
+        "09 - Setembro", "10 - Outubro", "11 - Novembro", "12 - Dezembro"
+    ]
+    pivot = pivot.reindex(ordem_meses)
 
-    st.subheader("📊 Comparativo Mensal")
-    fig = px.bar(
-        df_plot,
+    pivot = pivot.reset_index()
+
+    # ============================
+    # GRÁFICO COMPARATIVO
+    # ============================
+    st.subheader("📈 Comparativo Mensal")
+
+    graf = px.bar(
+        pivot,
         x="Mês",
-        y="Faturamento - Valor",
-        color="Ano",
+        y=[2024, 2025],
         barmode="group",
-        text="Valor_fmt"
+        text_auto=".2s",
+        labels={"value": "Faturamento - Valor", "Mês": "Mês", "variable": "Ano"}
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(graf, use_container_width=True)
 
+    # ============================
+    # CRIAR TABELA COM DIFERENÇAS
+    # ============================
+
+    tabela = pivot.copy()
+    tabela = tabela.rename(columns={2024: "Valor_2024", 2025: "Valor_2025"})
+
+    # Diferença em R$
+    tabela["Diferença (R$)"] = tabela["Valor_2025"] - tabela["Valor_2024"]
+
+    # Diferença em %
+    tabela["Diferença (%)"] = (tabela["Diferença (R$)"] / tabela["Valor_2024"]) * 100
+
+    # Formatação final
+    tabela_formatada = tabela.copy()
+
+    tabela_formatada["Valor_2024"] = tabela["Valor_2024"].apply(
+        lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    )
+    tabela_formatada["Valor_2025"] = tabela["Valor_2025"].apply(
+        lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    )
+    tabela_formatada["Diferença (R$)"] = tabela["Diferença (R$)"].apply(
+        lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    )
+    tabela_formatada["Diferença (%)"] = tabela["Diferença (%)"].apply(
+        lambda x: f"{x:.2f}%"
+    )
+
+    # ============================
+    # MOSTRAR TABELA FINAL
+    # ============================
     st.subheader("📄 Tabela Comparativa")
-    tabela = df.pivot_table(index="Mês", columns="Ano",
-                            values="Faturamento - Valor", aggfunc="sum").reset_index()
-    st.dataframe(tabela, use_container_width=True)
+    st.dataframe(tabela_formatada, use_container_width=True)
+
