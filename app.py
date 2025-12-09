@@ -6,7 +6,10 @@ import resultado
 st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
 
 st.sidebar.title("Menu")
-pagina = st.sidebar.radio("Selecione a página:", ["Faturamento", "Despesas", "Resultado"])
+pagina = st.sidebar.radio(
+    "Selecione a página:",
+    ["Faturamento", "Despesas", "Resultado"]
+)
 
 if pagina == "Faturamento":
     faturamento.render()
