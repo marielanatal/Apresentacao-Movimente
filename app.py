@@ -1,13 +1,8 @@
 import streamlit as st
 import faturamento
-import despesas
+import Despesas
 import resultado
 
-st.set_page_config(page_title="Dashboard Financeiro", layout="wide")
-
-# ---------------------------
-# MENU LATERAL
-# ---------------------------
 st.sidebar.title("📌 Navegação")
 
 pagina = st.sidebar.radio(
@@ -19,15 +14,17 @@ pagina = st.sidebar.radio(
     ]
 )
 
-# ---------------------------
-# CARREGAR A PÁGINA
-# ---------------------------
 if pagina == "📊 Visão de Faturamento":
     faturamento.render()
 
 elif pagina == "💰 Visão de Despesas":
-    despesas.render()
+    Despesas.render()
 
 elif pagina == "🧾 Resultado e Margens":
     resultado.render()
+
+
+elif pagina == "🧾 Resultado e Margens":
+    resultado.render()
+
 
