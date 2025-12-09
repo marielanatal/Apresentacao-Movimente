@@ -7,7 +7,7 @@ def render():
     st.header("📊 Dashboard Financeiro – Comparativo 2024 x 2025")
 
     # =============================
-    # 1) CARREGAR PLANILHA AUTOMATICAMENTE
+    # 1) CARREGAR PLANILHA AUTOMÁTICAMENTE
     # =============================
     df = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
 
@@ -32,46 +32,50 @@ def render():
     col2.metric("Total 2025", f"R$ {fat_2025:,.0f}".replace(",", "."))
 
     # =============================
-# 3) GRÁFICO COMPARATIVO LADO A LADO – FONTE GRANDE
-# =============================
+    # 3) GRÁFICO COMPARATIVO LADO A LADO – TEXTO GRANDE
+    # =============================
 
-st.subheader("📊 Comparativo Mensal 2024 x 2025 (Lado a Lado)")
+    st.subheader("📊 Comparativo Mensal 2024 x 2025 (Lado a Lado)")
 
-tabela_mensal = df.groupby(["Ano", "Mês_num", "Mês"])["Faturamento - Valor"].sum().reset_index()
+    tabela_mensal = df.groupby(["Ano", "Mês_num", "Mês"])["Faturamento - Valor"].sum().reset_index()
 
-# Garantir que Ano é texto (evita empilhar)
-tabela_mensal["Ano"] = tabela_mensal["Ano"].astype(str)
-tabela_mensal = tabela_mensal.sort_values(["Mês_num", "Ano"])
+    # Garantir Ano como texto
+    tabela_mensal["Ano"] = tabela_mensal["Ano"].astype(str)
 
-# Criar coluna de texto manual porque text_auto NÃO permite ajustar fonte
-tabela_mensal["label"] = tabela_mensal["Faturamento - Valor"].apply(lambda v: f"{v:,.0f}".replace(",", "."))
+    # Ordenação perfeita
+    tabela_mensal = tabela_mensal.sort_values(["Mês_num", "Ano"])
 
-fig = px.bar(
-    tabela_mensal,
-    x="Mês",
-    y="Faturamento - Valor",
-    color="Ano",
-    barmode="group",
-    text="label",   # <<< usar label manual
-    color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
-)
+    # Criar texto manual (necessário para aumentar fonte)
+    tabela_mensal["label"] = tabela_mensal["Faturamento - Valor"].apply(
+        lambda v: f"{v:,.0f}".replace(",", ".")
+    )
 
-fig.update_traces(
-    textposition="outside",
-    textfont=dict(size=32, family="Arial Black", color="black"),  # <<< TAMANHO AQUI
-    cliponaxis=False
-)
+    fig = px.bar(
+        tabela_mensal,
+        x="Mês",
+        y="Faturamento - Valor",
+        color="Ano",
+        barmode="group",
+        text="label",
+        color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
+    )
 
-fig.update_layout(
-    xaxis_title="Mês",
-    yaxis_title="Faturamento (R$)",
-    bargap=0.25,
-    bargroupgap=0.05,
-    height=600,
-    legend_title="Ano"
-)
+    fig.update_traces(
+        textposition="outside",
+        textfont=dict(size=32, family="Arial Black", color="black"),
+        cliponaxis=False
+    )
 
-st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(
+        xaxis_title="Mês",
+        yaxis_title="Faturamento (R$)",
+        bargap=0.25,
+        bargroupgap=0.05,
+        height=650,
+        legend_title="Ano"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
     # =============================
     # 4) TABELA COMPARATIVA FINAL
@@ -84,10 +88,9 @@ st.plotly_chart(fig, use_container_width=True)
         aggfunc="sum"
     ).reset_index()
 
-    # Ordenar pela string do mês (já ordenada no padrão)
     tabela = tabela.sort_values("Mês")
 
-    # Diferenças
+    # Criar diferenças
     tabela["Diferença (R$)"] = tabela[2025] - tabela[2024]
     tabela["Diferença (%)"] = (tabela["Diferença (R$)"] / tabela[2024]) * 100
 
