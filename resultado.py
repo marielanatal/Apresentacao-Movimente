@@ -12,32 +12,34 @@ def render():
     fat = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
     desp = pd.read_excel("despesas_2024_2025.xlsx")
 
-    # =============================
-    # 2) PADRONIZAR COLUNAS
-    # =============================
+    # Padronizar colunas
     fat.columns = fat.columns.str.upper()
     desp.columns = desp.columns.str.upper()
 
+    # Padronizar meses (problema real corrigido)
+    fat["MÊS"] = fat["MÊS"].str.upper().str.strip()
+    desp["MÊS"] = desp["MÊS"].str.upper().str.strip()
+
+    # Converter valores numéricos
     fat["FATURAMENTO - VALOR"] = pd.to_numeric(fat["FATURAMENTO - VALOR"], errors="coerce")
     desp["VALOR"] = pd.to_numeric(desp["VALOR"], errors="coerce")
 
     # =============================
-    # 3) AGRUPAR FATURAMENTO E DESPESAS
+    # 2) AGRUPAR DADOS
     # =============================
     fat_group = fat.groupby(["ANO", "MÊS"])["FATURAMENTO - VALOR"].sum().reset_index()
     desp_group = desp.groupby(["ANO", "MÊS"])["VALOR"].sum().reset_index()
 
     # =============================
-    # 4) CRIAR BASE COM TODOS OS MESES POSSÍVEIS
+    # 3) CRIAR TABELA BASE COM TODOS OS MESES
     # =============================
-    meses = sorted(list(fat_group["MÊS"].unique()))
-    anos = [2024, 2025]
+    meses = sorted(list(set(fat_group["MÊS"]).union(set(desp_group["MÊS"]))))
 
-    base = pd.MultiIndex.from_product([anos, meses], names=["ANO", "MÊS"])
+    base = pd.MultiIndex.from_product([[2024, 2025], meses], names=["ANO", "MÊS"])
     base = pd.DataFrame(index=base).reset_index()
 
     # =============================
-    # 5) JUNTAR DADOS E PREENCHER FALTANTES
+    # 4) JUNTAR FATURAMENTO E DESPESAS
     # =============================
     base = base.merge(fat_group, on=["ANO", "MÊS"], how="left")
     base = base.merge(desp_group, on=["ANO", "MÊS"], how="left")
@@ -51,37 +53,12 @@ def render():
     base["DESPESA"] = base["DESPESA"].fillna(0)
 
     # =============================
-    # 6) GERAR TABELA ANUAL LADO A LADO
+    # 5) SEPARAR ANOS
     # =============================
     fat24 = base[base["ANO"] == 2024].set_index("MÊS")
     fat25 = base[base["ANO"] == 2025].set_index("MÊS")
 
-    tabela = pd.DataFrame()
-    tabela["Mês"] = meses
-
-    tabela["Fat 2024"] = fat24["FATURAMENTO"].values
-    tabela["Fat 2025"] = fat25["FATURAMENTO"].values
-
-    tabela["Var R$"] = tabela["Fat 2025"] - tabela["Fat 2024"]
-    tabela["Var %"] = (tabela["Var R$"] / tabela["Fat 2024"].replace(0, pd.NA)) * 100
-
-    tabela["Desp 2024"] = fat24["DESPESA"].values
-    tabela["Desp 2025"] = fat25["DESPESA"].values
-
-    tabela["Margem 2024"] = (1 - (tabela["Desp 2024"] / tabela["Fat 2024"].replace(0, pd.NA))) * 100
-    tabela["Margem 2025"] = (1 - (tabela["Desp 2025"] / tabela["Fat 2025"].replace(0, pd.NA))) * 100
-
     # =============================
-    # 7) FORMATAR VISUALMENTE
+    # 6) MONTAR TABELA FINAL
     # =============================
-    tabela_format = tabela.copy()
-
-    for col in ["Fat 2024", "Fat 2025", "Var R$", "Desp 2024", "Desp 2025"]:
-        tabela_format[col] = tabela_format[col].apply(lambda x: f"R$ {x:,.0f}".replace(",", "."))
-
-    for col in ["Var %", "Margem 2024", "Margem 2025"]:
-        tabela_format[col] = tabela_format[col].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "-")
-
-    st.dataframe(tabela_format, use_container_width=True)
-
-
+   
