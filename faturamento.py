@@ -56,7 +56,7 @@ def render():
     # Aumentar fonte das labels
     fig.update_traces(
         textposition="outside",
-        textfont_size=22,   # <<< AQUI A FONTE FOI AUMENTADA
+        textfont_size=50,   # <<< AQUI A FONTE FOI AUMENTADA
         cliponaxis=False
     )
 
