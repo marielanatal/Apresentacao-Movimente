@@ -93,7 +93,7 @@ def render():
     tabela["Margem 2025"] = (1 - (tabela["Desp 2025"] / tabela["Fat 2025"].replace(0, pd.NA))) * 100
 
     # =============================
-    # 8) FORMATAR PARA EXIBIÇÃO
+    # 8) FORMATAR VISUAL PARA EXIBIÇÃO
     # =============================
     def fmt_money(v):
         return f"R$ {v:,.0f}".replace(",", ".")
@@ -102,6 +102,7 @@ def render():
         return f"{v:.1f}%" if pd.notna(v) else "-"
 
     tabela_fmt = tabela.copy()
+
     for col in ["Fat 2024", "Fat 2025", "Var R$", "Desp 2024", "Desp 2025"]:
         tabela_fmt[col] = tabela_fmt[col].apply(fmt_money)
 
@@ -111,57 +112,61 @@ def render():
     st.subheader("📄 Tabela Comparativa")
     st.dataframe(tabela_fmt, use_container_width=True)
 
+    # =============================
+    # 9) GRÁFICOS — Usar tabela numérica
+    # =============================
+    tabela_graf = tabela.copy()
+
+    tabela_graf["Margem 2024"] = pd.to_numeric(tabela_graf["Margem 2024"], errors="coerce")
+    tabela_graf["Margem 2025"] = pd.to_numeric(tabela_graf["Margem 2025"], errors="coerce")
+
     # ======================================================
-    # 9) GRÁFICO 1 – FATURAMENTO 2024 x 2025
+    # 10) GRÁFICO DE FATURAMENTO
     # ======================================================
     st.subheader("📈 Faturamento – Comparação 2024 x 2025")
 
     fig_fat = px.line(
-        tabela,
+        tabela_graf,
         x="Mês",
         y=["Fat 2024", "Fat 2025"],
         markers=True,
+        color_discrete_map={"Fat 2024": "#FF8C00", "Fat 2025": "#005BBB"},
         labels={"value": "R$"},
-        color_discrete_map={"Fat 2024": "#FF8C00", "Fat 2025": "#005BBB"}
     )
+
     st.plotly_chart(fig_fat, use_container_width=True)
 
     # ======================================================
-    # 10) GRÁFICO 2 – DESPESAS 2024 x 2025
+    # 11) GRÁFICO DE DESPESAS
     # ======================================================
     st.subheader("💸 Despesas – Comparação 2024 x 2025")
 
     fig_desp = px.line(
-        tabela,
+        tabela_graf,
         x="Mês",
         y=["Desp 2024", "Desp 2025"],
         markers=True,
+        color_discrete_map={"Desp 2024": "#C00000", "Desp 2025": "#800000"},
         labels={"value": "R$"},
-        color_discrete_map={"Desp 2024": "#C00000", "Desp 2025": "#800000"}
     )
+
     st.plotly_chart(fig_desp, use_container_width=True)
 
     # ======================================================
-# 11) GRÁFICO 3 – MARGEM 2024 x 2025 (corrigido)
-# ======================================================
-st.subheader("📉 Margem (%) – Comparação 2024 x 2025")
+    # 12) GRÁFICO DE MARGEM — CORRIGIDO
+    # ======================================================
+    st.subheader("📉 Margem (%) – Comparação 2024 x 2025")
 
-# dataframe numérico para gráficos
-tabela_graf = tabela.copy()
+    fig_margem = px.line(
+        tabela_graf,
+        x="Mês",
+        y=["Margem 2024", "Margem 2025"],
+        markers=True,
+        color_discrete_map={"Margem 2024": "#228B22", "Margem 2025": "#006400"},
+        labels={"value": "%"},
+    )
 
-# garantir que tudo é número
-tabela_graf["Margem 2024"] = pd.to_numeric(tabela_graf["Margem 2024"], errors="coerce")
-tabela_graf["Margem 2025"] = pd.to_numeric(tabela_graf["Margem 2025"], errors="coerce")
+    st.plotly_chart(fig_margem, use_container_width=True)
 
-fig_margem = px.line(
-    tabela_graf,
-    x="Mês",
-    y=["Margem 2024", "Margem 2025"],
-    markers=True,
-    labels={"value": "%"},
-    color_discrete_map={"Margem 2024": "#228B22", "Margem 2025": "#006400"},
-)
-
-st.plotly_chart(fig_margem, use_container_width=True)
 
 
