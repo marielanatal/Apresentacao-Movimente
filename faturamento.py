@@ -64,7 +64,7 @@ def render():
 
     fig.update_traces(
     textposition="outside",
-    textfont_size=22,   # <<< AQUI AUMENTA A FONTE
+    textfont_size=32,   # <<< AQUI AUMENTA A FONTE
     cliponaxis=False
     )
 
