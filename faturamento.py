@@ -43,7 +43,7 @@ def render():
         text=tabela_mensal["texto"],
         texttemplate="%{text}",
         textposition="outside",
-        textfont_size=50,
+        textfont_size=100,
         cliponaxis=False
     )
 
