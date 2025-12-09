@@ -21,7 +21,6 @@ def render():
     # =============================
     # 2) CARDS DE RESUMO
     # =============================
-
     resumo = df.groupby("Ano")["Faturamento - Valor"].sum().reset_index()
 
     fat_2024 = resumo.loc[resumo["Ano"] == 2024, "Faturamento - Valor"].values[0]
@@ -33,39 +32,44 @@ def render():
     col2.metric("Total 2025", f"R$ {fat_2025:,.0f}".replace(",", "."))
 
     # =============================
-    # 3) GRÁFICO COMPARATIVO LADO A LADO
+    # 3) GRÁFICO COMPARATIVO LADO A LADO – COM FONTE MAIOR
     # =============================
 
     st.subheader("📊 Comparativo Mensal 2024 x 2025 (Lado a Lado)")
 
     tabela_mensal = df.groupby(["Ano", "Mês_num", "Mês"])["Faturamento - Valor"].sum().reset_index()
 
+    # Ano precisa ser string para não empilhar barras
     tabela_mensal["Ano"] = tabela_mensal["Ano"].astype(str)
     tabela_mensal = tabela_mensal.sort_values(["Mês_num", "Ano"])
 
     fig = px.bar(
-    tabela_mensal,
-    x="Mês",
-    y="Faturamento - Valor",
-    color="Ano",
-    barmode="group",
-    text_auto=True,
-    color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
-)
+        tabela_mensal,
+        x="Mês",
+        y="Faturamento - Valor",
+        color="Ano",
+        barmode="group",
+        text_auto=True,
+        color_discrete_map={"2024": "#FF8C00", "2025": "#005BBB"}
+    )
 
-fig.update_traces(
-    textposition="outside",
-    textfont_size=32,   # <<< AQUI AUMENTA A FONTE
-    cliponaxis=False
-)
+    # Aumentar fonte das labels
+    fig.update_traces(
+        textposition="outside",
+        textfont_size=22,   # <<< AQUI A FONTE FOI AUMENTADA
+        cliponaxis=False
+    )
 
-fig.update_layout(
-    xaxis_title="Mês",
-    yaxis_title="Faturamento (R$)",
-    bargap=0.25,
-    bargroupgap=0.05,
-    height=520,
-    legend_title="Ano"
+    fig.update_layout(
+        xaxis_title="Mês",
+        yaxis_title="Faturamento (R$)",
+        bargap=0.25,
+        bargroupgap=0.05,
+        height=520,
+        legend_title="Ano"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
     # =============================
     # 4) TABELA COMPARATIVA FINAL
@@ -78,6 +82,7 @@ fig.update_layout(
         aggfunc="sum"
     ).reset_index()
 
+    # Ordenar pela string do mês (já ordenada no padrão)
     tabela = tabela.sort_values("Mês")
 
     # Diferenças
