@@ -12,41 +12,9 @@ def render():
 
     resumo = df.groupby("Ano")["Faturamento - Valor"].sum()
 
-  # ============================
-# CARDS ESTILIZADOS
-# ============================
-
-def card(valor, titulo, cor):
-    st.markdown(
-        f"""
-        <div style="
-            background-color: #ffffff;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            border-left: 6px solid {cor};
-            height: 120px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        ">
-            <span style="font-size:16px; color:#555;">{titulo}</span>
-            <span style="font-size:32px; font-weight:700; color:{cor};">
-                R$ {valor:,.0f}
-            </span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-col1, col2 = st.columns(2)
-
-with col1:
-    card(resumo[2024], "Faturamento 2024", "#FF8C00")
-
-with col2:
-    card(resumo[2025], "Faturamento 2025", "#005BBB")
-
+    col1, col2 = st.columns(2)
+    col1.metric("Ano 2024", f"R$ {resumo[2024]:,.0f}".replace(",", "."))
+    col2.metric("Ano 2025", f"R$ {resumo[2025]:,.0f}".replace(",", "."))
 
     # ============================
     # GRÁFICO DEFINITIVO (SEM EMPILHAR)
@@ -118,4 +86,5 @@ with col2:
 
     st.subheader("📄 Tabela Comparativa")
     st.dataframe(fmt, use_container_width=True)
+
 
