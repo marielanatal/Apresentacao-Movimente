@@ -44,7 +44,7 @@ def render():
         texttemplate="%{text}",
         textposition="outside",
         textfont_size=30,
-        cliponaxis=false
+        cliponaxis= false
     )
 
     # eixo X categórico para evitar empilhamento escondido
