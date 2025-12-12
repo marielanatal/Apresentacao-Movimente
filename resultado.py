@@ -19,19 +19,19 @@ def render():
     df_desp.columns = df_desp.columns.astype(str).str.strip()
 
     # =============================
-    # 3) AJUSTAR DADOS FATURAMENTO
+    # 3) AJUSTAR FATURAMENTO
     # =============================
     df_fat["Ano"] = df_fat["Ano"].astype(int)
     df_fat["MÊS_NUM"] = df_fat["Mês"].str[:2].astype(int)
 
     # =============================
-    # 4) AJUSTAR DADOS DESPESAS
+    # 4) AJUSTAR DESPESAS
     # =============================
     df_desp["ANO"] = df_desp["ANO"].astype(int)
     df_desp["MÊS_NUM"] = df_desp["MÊS"].str[:2].astype(int)
 
     # =============================
-    # 5) AGRUPAR POR ANO/MÊS
+    # 5) AGRUPAR
     # =============================
     tabela_fat = df_fat.groupby(["Ano", "MÊS_NUM"])["Faturamento - Valor"].sum().reset_index()
     tabela_desp = df_desp.groupby(["ANO", "MÊS_NUM"])["VALOR"].sum().reset_index()
@@ -40,33 +40,26 @@ def render():
     tabela_desp.rename(columns={"VALOR": "DESP"}, inplace=True)
 
     # =============================
-    # 6) JUNTAR TABELAS
+    # 6) MERGE
     # =============================
     base = pd.merge(tabela_fat, tabela_desp, on=["ANO", "MÊS_NUM"], how="outer")
     base["DESP"] = base["DESP"].fillna(0)
     base["RESULT"] = base["FAT"] - base["DESP"]
 
     # =============================
-    # 7) SEPARAR 2024 E 2025
+    # 7) SEPARAR ANOS
     # =============================
     df24 = base[base["ANO"] == 2024].sort_values("MÊS_NUM")
     df25 = base[base["ANO"] == 2025].sort_values("MÊS_NUM")
 
     # =============================
-    # 8) FORMATAR R$ PARA TABELAS
+    # 8) FUNÇÃO FORMATO BRASILEIRO
     # =============================
     def fmt(valor):
         return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-    df24_fmt = df24.copy()
-    df25_fmt = df25.copy()
-
-    for col in ["FAT", "DESP", "RESULT"]:
-        df24_fmt[col] = df24[col].apply(fmt)
-        df25_fmt[col] = df25[col].apply(fmt)
-
     # =============================
-    # 9) SOMATÓRIO FINAL DAS TABELAS
+    # 9) SOMATÓRIOS
     # =============================
     soma_24 = {
         "FAT_TOTAL": df24["FAT"].sum(),
@@ -81,8 +74,92 @@ def render():
     }
 
     # =============================
-    # 10) MOSTRAR TABELA 2024
+    # 🔷🔷🔷 10) CARDS CORPORATIVOS NO TOPO
     # =============================
+
+    st.markdown("## 📌 Visão Geral do Ano")
+
+    col1, col2, col3 = st.columns(3)
+
+    # -------- CARD 2024 --------
+    with col1:
+        st.markdown(f"""
+        <div style="
+            background-color:#0A66C2;
+            padding:18px;
+            border-radius:12px;
+            color:white;
+            box-shadow:0 2px 8px rgba(0,0,0,0.15);
+        ">
+            <h4 style="margin:0;">Ano 2024</h4>
+
+            <p style="margin:6px 0 0;">📈 Faturamento</p>
+            <b style="font-size:22px;">{fmt(soma_24['FAT_TOTAL'])}</b>
+
+            <p style="margin:10px 0 0;">💸 Despesas</p>
+            <b style="font-size:22px;">{fmt(soma_24['DESP_TOTAL'])}</b>
+
+            <p style="margin:10px 0 0;">💰 Resultado</p>
+            <b style="font-size:22px;">{fmt(soma_24['RESULT_TOTAL'])}</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # -------- CARD 2025 --------
+    with col2:
+        st.markdown(f"""
+        <div style="
+            background-color:#6F42C1;
+            padding:18px;
+            border-radius:12px;
+            color:white;
+            box-shadow:0 2px 8px rgba(0,0,0,0.15);
+        ">
+            <h4 style="margin:0;">Ano 2025</h4>
+
+            <p style="margin:6px 0 0;">📈 Faturamento</p>
+            <b style="font-size:22px;">{fmt(soma_25['FAT_TOTAL'])}</b>
+
+            <p style="margin:10px 0 0;">💸 Despesas</p>
+            <b style="font-size:22px;">{fmt(soma_25['DESP_TOTAL'])}</b>
+
+            <p style="margin:10px 0 0;">💰 Resultado</p>
+            <b style="font-size:22px;">{fmt(soma_25['RESULT_TOTAL'])}</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # -------- CARD DIFERENÇA --------
+    with col3:
+        st.markdown(f"""
+        <div style="
+            background-color:#0B5E55;
+            padding:18px;
+            border-radius:12px;
+            color:white;
+            box-shadow:0 2px 8px rgba(0,0,0,0.15);
+        ">
+            <h4 style="margin:0;">Variação</h4>
+
+            <p style="margin:6px 0 0;">📊 Faturamento</p>
+            <b style="font-size:22px;">{fmt(soma_25['FAT_TOTAL'] - soma_24['FAT_TOTAL'])}</b>
+
+            <p style="margin:10px 0 0;">📊 Despesas</p>
+            <b style="font-size:22px;">{fmt(soma_25['DESP_TOTAL'] - soma_24['DESP_TOTAL'])}</b>
+
+            <p style="margin:10px 0 0;">📊 Resultado</p>
+            <b style="font-size:22px;">{fmt(soma_25['RESULT_TOTAL'] - soma_24['RESULT_TOTAL'])}</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # =============================
+    # 11) TABELA 2024
+    # =============================
+    df24_fmt = df24.copy()
+    df25_fmt = df25.copy()
+
+    for col in ["FAT", "DESP", "RESULT"]:
+        df24_fmt[col] = df24[col].apply(fmt)
+        df25_fmt[col] = df25[col].apply(fmt)
+
     st.subheader("📄 Resultado 2024")
     st.dataframe(df24_fmt, use_container_width=True)
 
@@ -94,7 +171,7 @@ def render():
     """)
 
     # =============================
-    # 11) MOSTRAR TABELA 2025
+    # 12) TABELA 2025
     # =============================
     st.subheader("📄 Resultado 2025")
     st.dataframe(df25_fmt, use_container_width=True)
@@ -107,7 +184,7 @@ def render():
     """)
 
     # =============================
-    # 12) GRÁFICO LIMPO LINHA DO RESULTADO
+    # 13) GRÁFICO DE RESULTADO
     # =============================
     graf = base.sort_values(["ANO", "MÊS_NUM"])
 
@@ -127,7 +204,6 @@ def render():
         height=450
     )
 
-    # Formatar números como R$
     fig.update_traces(
         hovertemplate="R$ %{y:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     )
