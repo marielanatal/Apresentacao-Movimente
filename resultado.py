@@ -1,3 +1,5 @@
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -114,21 +116,81 @@ def render():
     st.dataframe(tabela_2025, use_container_width=True)
 
     # =============================
-    # 6) GRÁFICOS
+    # GRÁFICO COM EIXO DUPLO — FAT, DESP E RESULTADO
     # =============================
-    st.subheader("📈 Comparativo Faturamento, Despesas e Resultado")
-
-    tabela_graf = base.copy()
-    tabela_graf["RESULTADO"] = tabela_graf["FATURAMENTO"] - tabela_graf["DESPESA"]
-
-    fig = px.line(
-        tabela_graf,
-        x="MES_NUM",
-        y=["FATURAMENTO", "DESPESA", "RESULTADO"],
-        color="ANO",
-        markers=True,
-        labels={"value": "R$", "MES_NUM": "Mês"},
-        title="Linha do Resultado"
+    
+    st.subheader("📊 Faturamento, Despesas e Resultado – Comparativo 2024 x 2025")
+    
+    # Preparar dados
+    graf = tabela.copy()
+    graf = graf.sort_values("Mês")
+    
+    # Criar figura
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # ---- BARRAS FATURAMENTO ----
+    fig.add_bar(
+        x=graf["Mês"],
+        y=graf["Fat 2024"],
+        name="Faturamento 2024",
+        marker_color="#005BBB",
     )
-
+    
+    fig.add_bar(
+        x=graf["Mês"],
+        y=graf["Fat 2025"],
+        name="Faturamento 2025",
+        marker_color="#00A6FF",
+    )
+    
+    # ---- BARRAS DESPESAS ----
+    fig.add_bar(
+        x=graf["Mês"],
+        y=graf["Desp 2024"],
+        name="Despesas 2024",
+        marker_color="#FF8C00",
+    )
+    
+    fig.add_bar(
+        x=graf["Mês"],
+        y=graf["Desp 2025"],
+        name="Despesas 2025",
+        marker_color="#FFC04D",
+    )
+    
+    # ---- LINHA RESULTADO ----
+    fig.add_trace(
+        go.Scatter(
+            x=graf["Mês"],
+            y=graf["Res 2024"],
+            mode="lines+markers",
+            name="Resultado 2024",
+            line=dict(color="green", width=3),
+        ),
+        secondary_y=True,
+    )
+    
+    fig.add_trace(
+        go.Scatter(
+            x=graf["Mês"],
+            y=graf["Res 2025"],
+            mode="lines+markers",
+            name="Resultado 2025",
+            line=dict(color="darkgreen", width=3, dash="dot"),
+        ),
+        secondary_y=True,
+    )
+    
+    # ---- EIXOS ----
+    fig.update_layout(
+        barmode="group",
+        height=550,
+        title="Comparativo com Eixo Duplo — Receita, Despesa e Resultado",
+        xaxis_title="Mês",
+    )
+    
+    fig.update_yaxes(title_text="Receita / Despesa (R$)", secondary_y=False)
+    fig.update_yaxes(title_text="Resultado (R$)", secondary_y=True)
+    
     st.plotly_chart(fig, use_container_width=True)
+
