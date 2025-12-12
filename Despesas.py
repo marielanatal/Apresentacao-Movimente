@@ -3,160 +3,134 @@ import pandas as pd
 import plotly.express as px
 
 def render():
+    st.header("💰 Dashboard de Despesas – 2024 x 2025")
+    st.markdown("---")
 
-    st.header("📊 Resultado – Comparativo 2024 x 2025")
-    st.markdown("Faturamento x Despesas x Margem por mês.")
+    # ---------------------------------------------------------
+    # 1. Carregar arquivo automaticamente
+    # ---------------------------------------------------------
+    FILE_PATH = "despesas_2024_2025.xlsx"
+    df = pd.read_excel(FILE_PATH)
 
-    # =============================
-    # 1) CARREGAR PLANILHAS
-    # =============================
-    fat = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
-    desp = pd.read_excel("despesas_2024_2025.xlsx")
+    # ---------------------------------------------------------
+    # 2. Padronizar colunas
+    # ---------------------------------------------------------
+    df.columns = df.columns.str.upper().str.replace(" ", "_")
 
-    # Padronizar colunas
-    fat.columns = fat.columns.str.upper()
-    desp.columns = desp.columns.str.upper()
+    df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce").astype(int)
+    df["VALOR"] = pd.to_numeric(df["VALOR"], errors="coerce")
 
-    # =============================
-    # 2) EXTRAIR MÊS (01, 02, 03...)
-    # =============================
-    def extrair_mes_num(x):
-        try:
-            return int(str(x)[:2])
-        except:
-            return None
-
-    fat["MES_NUM"] = fat["MÊS"].apply(extrair_mes_num)
-    desp["MES_NUM"] = desp["MÊS"].apply(extrair_mes_num)
-
-    # Converter valores
-    fat["FATURAMENTO - VALOR"] = pd.to_numeric(fat["FATURAMENTO - VALOR"], errors="coerce")
-    desp["VALOR"] = pd.to_numeric(desp["VALOR"], errors="coerce")
-
-    # =============================
-    # 3) AGRUPAR
-    # =============================
-    fat_group = (
-        fat.groupby(["ANO", "MES_NUM"])["FATURAMENTO - VALOR"]
-        .sum()
-        .reset_index()
-        .rename(columns={"FATURAMENTO - VALOR": "FATURAMENTO"})
-    )
-
-    desp_group = (
-        desp.groupby(["ANO", "MES_NUM"])["VALOR"]
-        .sum()
-        .reset_index()
-        .rename(columns={"VALOR": "DESPESA"})
-    )
-
-    # =============================
-    # 4) CRIAR BASE PARA TODOS MESES
-    # =============================
-    meses = range(1, 13)
-    anos = [2024, 2025]
-
-    base = pd.MultiIndex.from_product([anos, meses], names=["ANO", "MES_NUM"])
-    base = pd.DataFrame(index=base).reset_index()
-
-    base = base.merge(fat_group, on=["ANO", "MES_NUM"], how="left")
-    base = base.merge(desp_group, on=["ANO", "MES_NUM"], how="left")
-
-    base["FATURAMENTO"] = base["FATURAMENTO"].fillna(0)
-    base["DESPESA"] = base["DESPESA"].fillna(0)
-
-    # =============================
-    # 5) SEPARAR ANOS
-    # =============================
-    fat24 = base[base["ANO"] == 2024].set_index("MES_NUM")
-    fat25 = base[base["ANO"] == 2025].set_index("MES_NUM")
-
-    # =============================
-    # 6) MONTAR TABELA FINAL
-    # =============================
-    tabela = pd.DataFrame()
-    tabela["Mês"] = list(meses)
-
-    tabela["Fat 2024"] = fat24["FATURAMENTO"].values
-    tabela["Fat 2025"] = fat25["FATURAMENTO"].values
-
-    tabela["Desp 2024"] = fat24["DESPESA"].values
-    tabela["Desp 2025"] = fat25["DESPESA"].values
-
-    tabela["Resultado 2024"] = tabela["Fat 2024"] - tabela["Desp 2024"]
-    tabela["Resultado 2025"] = tabela["Fat 2025"] - tabela["Desp 2025"]
-
-    tabela["Margem 2024"] = (tabela["Resultado 2024"] / tabela["Fat 2024"].replace(0, pd.NA)) * 100
-    tabela["Margem 2025"] = (tabela["Resultado 2025"] / tabela["Fat 2025"].replace(0, pd.NA)) * 100
-
-    tabela["Diferença (R$)"] = tabela["Resultado 2025"] - tabela["Resultado 2024"]
-    tabela["Diferença (%)"] = (tabela["Diferença (R$)"] / tabela["Resultado 2024"].replace(0, pd.NA)) * 100
-
-    # =============================
-    # 7) FORMATAR NUMEROS EM R$
-    # =============================
+    # Formatação de moeda
     def fmt_real(v):
         return f"R$ {v:,.2f}".replace(",", ".")
 
-    def fmt_pct(v):
-        return f"{v:.1f}%" if pd.notna(v) else "-"
+    # ---------------------------------------------------------
+    # 3. Cards Resumo
+    # ---------------------------------------------------------
+    total_2024 = df[df["ANO"] == 2024]["VALOR"].sum()
+    total_2025 = df[df["ANO"] == 2025]["VALOR"].sum()
 
-    tabela_fmt = tabela.copy()
+    dif_percentual = ((total_2025 - total_2024) / total_2024 * 100) if total_2024 > 0 else 0
 
-    for col in ["Fat 2024", "Fat 2025", "Desp 2024", "Desp 2025", "Resultado 2024", "Resultado 2025", "Diferença (R$)"]:
-        tabela_fmt[col] = tabela_fmt[col].apply(fmt_real)
+    col1, col2, col3 = st.columns(3)
 
-    for col in ["Margem 2024", "Margem 2025", "Diferença (%)"]:
-        tabela_fmt[col] = tabela_fmt[col].apply(fmt_pct)
+    col1.metric("💸 Total 2024", fmt_real(total_2024))
+    col2.metric("💸 Total 2025", fmt_real(total_2025))
+    col3.metric("📉 Diferença %", f"{dif_percentual:.1f}%")
 
-    # =============================
-    # 8) MOSTRAR TABELA
-    # =============================
-    st.subheader("📄 Tabela Comparativa de Resultados")
-    st.dataframe(tabela_fmt, use_container_width=True)
+    st.markdown("---")
 
-    # =============================
-    # 9) GRÁFICOS
-    # =============================
+    # ---------------------------------------------------------
+    # 4. Despesas por categoria (RAIZ PRINCIPAL)
+    # ---------------------------------------------------------
+    st.subheader("🏷️ Despesas por Categoria")
 
-    tabela_graf = tabela.copy()
+    g1 = df.groupby("RAIZ_PRINCIPAL")["VALOR"].sum().reset_index()
+    g1["VALOR_FMT"] = g1["VALOR"].apply(fmt_real)
 
-    # ---- FATURAMENTO ----
-    st.subheader("📈 Faturamento – 2024 x 2025")
-
-    fig_fat = px.line(
-        tabela_graf,
-        x="Mês",
-        y=["Fat 2024", "Fat 2025"],
-        markers=True,
-        color_discrete_map={"Fat 2024": "#FF8C00", "Fat 2025": "#005BBB"},
-        labels={"value": "R$"},
+    fig1 = px.bar(
+        g1,
+        x="VALOR",
+        y="RAIZ_PRINCIPAL",
+        orientation="h",
+        text="VALOR_FMT",
+        color="RAIZ_PRINCIPAL",
+        color_discrete_sequence=px.colors.qualitative.Set3
     )
-    st.plotly_chart(fig_fat, use_container_width=True)
 
-    # ---- DESPESAS ----
-    st.subheader("💸 Despesas – 2024 x 2025")
-
-    fig_desp = px.line(
-        tabela_graf,
-        x="Mês",
-        y=["Desp 2024", "Desp 2025"],
-        markers=True,
-        color_discrete_map={"Desp 2024": "#C00000", "Desp 2025": "#800000"},
-        labels={"value": "R$"},
+    fig1.update_traces(
+        textposition="outside",
+        textfont_size=14
     )
-    st.plotly_chart(fig_desp, use_container_width=True)
 
-    # ---- MARGEM ----
-    st.subheader("📉 Margem (%) – 2024 x 2025")
-
-    fig_margem = px.line(
-        tabela_graf,
-        x="Mês",
-        y=["Margem 2024", "Margem 2025"],
-        markers=True,
-        color_discrete_map={"Margem 2024": "#228B22", "Margem 2025": "#006400"},
-        labels={"value": "%"},
+    fig1.update_layout(
+        xaxis_title="Despesas (R$)",
+        showlegend=False,
+        height=500
     )
-    st.plotly_chart(fig_margem, use_container_width=True)
+
+    st.plotly_chart(fig1, use_container_width=True)
+
+    st.markdown("---")
+
+    # ---------------------------------------------------------
+    # 5. Top 10 fornecedores
+    # ---------------------------------------------------------
+    st.subheader("🏆 Top 10 Fornecedores por Gasto")
+
+    top = (
+        df.groupby("EMPRESA/PESSOA")["VALOR"]
+        .sum()
+        .reset_index()
+        .sort_values(by="VALOR", ascending=False)
+        .head(10)
+    )
+
+    top["VALOR"] = top["VALOR"].apply(fmt_real)
+
+    st.dataframe(top, hide_index=True, use_container_width=True)
+
+    st.markdown("---")
+
+    # ---------------------------------------------------------
+    # 6. Resumo mensal por ano
+    # ---------------------------------------------------------
+    st.subheader("📊 Resumo Mensal por Ano")
+
+    resumo = df.pivot_table(
+        values="VALOR",
+        index="MÊS",
+        columns="ANO",
+        aggfunc="sum",
+        fill_value=0
+    )
+
+    # Ordenar meses
+    ordem_meses = [
+        "01 - JANEIRO", "02 - FEVEREIRO", "03 - MARÇO", "04 - ABRIL",
+        "05 - MAIO", "06 - JUNHO", "07 - JULHO", "08 - AGOSTO",
+        "09 - SETEMBRO", "10 - OUTUBRO", "11 - NOVEMBRO", "12 - DEZEMBRO"
+    ]
+    resumo = resumo.reindex(ordem_meses)
+
+    # Diferenças
+    anos = resumo.columns.tolist()
+    if len(anos) == 2:
+        ano_antigo, ano_recente = anos[0], anos[1]
+        resumo["DIFERENÇA (R$)"] = resumo[ano_recente] - resumo[ano_antigo]
+        resumo["VARIAÇÃO (%)"] = (resumo["DIFERENÇA (R$)"] / resumo[ano_antigo] * 100).replace([float('inf'), -float('inf')], 0)
+    else:
+        resumo["DIFERENÇA (R$)"] = 0
+        resumo["VARIAÇÃO (%)"] = 0
+
+    # Formatar tabela
+    resumo_fmt = resumo.copy()
+
+    for col in anos + ["DIFERENÇA (R$)"]:
+        resumo_fmt[col] = resumo_fmt[col].apply(fmt_real)
+
+    resumo_fmt["VARIAÇÃO (%)"] = resumo_fmt["VARIAÇÃO (%)"].apply(lambda x: f"{x:.1f}%")
+
+    st.dataframe(resumo_fmt, use_container_width=True)
+
 
