@@ -40,7 +40,7 @@ def render():
         marker_color="#FF8C00",
         text=label_2024,
         textposition="outside",
-        textfont=dict(size=18)
+        textfont=dict(size=30)
     ))
 
     fig.add_trace(go.Bar(
@@ -50,13 +50,13 @@ def render():
         marker_color="#005BBB",
         text=label_2025,
         textposition="outside",
-        textfont=dict(size=60)
+        textfont=dict(size=30)
     ))
 
     fig.update_layout(
         barmode="group",          # GARANTE LADO A LADO FORÇADO
-        bargap=0.20,              # espaço entre grupos
-        bargroupgap=0.05,         # espaço entre barras do mesmo grupo
+        bargap=0.40,              # espaço entre grupos
+        bargroupgap=0.2,         # espaço entre barras do mesmo grupo
         title="Comparativo Mensal",
         title_x=0.5,
         yaxis_title="Faturamento",
