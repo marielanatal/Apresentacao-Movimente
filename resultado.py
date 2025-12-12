@@ -3,133 +3,146 @@ import pandas as pd
 import plotly.express as px
 
 def render():
-
-    st.header("📈 Comparativo Faturamento, Despesas e Resultado")
+    st.header("📊 Comparativo Ano x Ano – Faturamento x Despesas x Margem")
 
     # =============================
     # 1) CARREGAR PLANILHAS
     # =============================
-    df_fat = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
-    df_desp = pd.read_excel("despesas_2024_2025.xlsx")
+    fat = pd.read_excel("Consolidado de Faturamento - 2024 e 2025.xlsx")
+    desp = pd.read_excel("despesas_2024_2025.xlsx")
+
+    # Padronizar colunas
+    fat.columns = fat.columns.str.upper()
+    desp.columns = desp.columns.str.upper()
 
     # =============================
-    # 2) PADRONIZAR NOMES DAS COLUNAS
+    # 2) CRIAR "MES_NUM"
     # =============================
-    df_fat.columns = df_fat.columns.astype(str).str.strip()
-    df_desp.columns = df_desp.columns.astype(str).str.strip()
+    fat["MES_NUM"] = fat["MÊS"].str[:2].astype(int)
+    desp["MES_NUM"] = desp["MÊS"].str[:2].astype(int)
+
+    fat["FATURAMENTO - VALOR"] = pd.to_numeric(fat["FATURAMENTO - VALOR"], errors="coerce")
+    desp["VALOR"] = pd.to_numeric(desp["VALOR"], errors="coerce")
 
     # =============================
-    # 3) AJUSTAR DADOS FATURAMENTO
+    # 3) AGRUPAMENTOS
     # =============================
-    df_fat["Ano"] = df_fat["Ano"].astype(int)
-    df_fat["MÊS_NUM"] = df_fat["Mês"].str[:2].astype(int)
-
-    # =============================
-    # 4) AJUSTAR DADOS DESPESAS
-    # =============================
-    df_desp["ANO"] = df_desp["ANO"].astype(int)
-    df_desp["MÊS_NUM"] = df_desp["MÊS"].str[:2].astype(int)
-
-    # =============================
-    # 5) AGRUPAR POR ANO/MÊS
-    # =============================
-    tabela_fat = df_fat.groupby(["Ano", "MÊS_NUM"])["Faturamento - Valor"].sum().reset_index()
-    tabela_desp = df_desp.groupby(["ANO", "MÊS_NUM"])["VALOR"].sum().reset_index()
-
-    tabela_fat.rename(columns={"Ano": "ANO", "Faturamento - Valor": "FAT"}, inplace=True)
-    tabela_desp.rename(columns={"VALOR": "DESP"}, inplace=True)
-
-    # =============================
-    # 6) JUNTAR TABELAS
-    # =============================
-    base = pd.merge(tabela_fat, tabela_desp, on=["ANO", "MÊS_NUM"], how="outer")
-    base["DESP"] = base["DESP"].fillna(0)
-    base["RESULT"] = base["FAT"] - base["DESP"]
-
-    # =============================
-    # 7) SEPARAR 2024 E 2025
-    # =============================
-    df24 = base[base["ANO"] == 2024].sort_values("MÊS_NUM")
-    df25 = base[base["ANO"] == 2025].sort_values("MÊS_NUM")
-
-    # =============================
-    # 8) FORMATAR R$ PARA TABELAS
-    # =============================
-    def fmt(valor):
-        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-    df24_fmt = df24.copy()
-    df25_fmt = df25.copy()
-
-    for col in ["FAT", "DESP", "RESULT"]:
-        df24_fmt[col] = df24[col].apply(fmt)
-        df25_fmt[col] = df25[col].apply(fmt)
-
-    # =============================
-    # 9) SOMATÓRIO FINAL DAS TABELAS
-    # =============================
-    soma_24 = {
-        "FAT_TOTAL": df24["FAT"].sum(),
-        "DESP_TOTAL": df24["DESP"].sum(),
-        "RESULT_TOTAL": df24["RESULT"].sum()
-    }
-
-    soma_25 = {
-        "FAT_TOTAL": df25["FAT"].sum(),
-        "DESP_TOTAL": df25["DESP"].sum(),
-        "RESULT_TOTAL": df25["RESULT"].sum()
-    }
-
-    # =============================
-    # 10) MOSTRAR TABELA 2024
-    # =============================
-    st.subheader("📄 Resultado 2024")
-    st.dataframe(df24_fmt, use_container_width=True)
-
-    st.markdown(f"""
-    ### **Totais 2024**
-    • **Faturamento:** {fmt(soma_24['FAT_TOTAL'])}  
-    • **Despesas:** {fmt(soma_24['DESP_TOTAL'])}  
-    • **Resultado:** {fmt(soma_24['RESULT_TOTAL'])}  
-    """)
-
-    # =============================
-    # 11) MOSTRAR TABELA 2025
-    # =============================
-    st.subheader("📄 Resultado 2025")
-    st.dataframe(df25_fmt, use_container_width=True)
-
-    st.markdown(f"""
-    ### **Totais 2025**
-    • **Faturamento:** {fmt(soma_25['FAT_TOTAL'])}  
-    • **Despesas:** {fmt(soma_25['DESP_TOTAL'])}  
-    • **Resultado:** {fmt(soma_25['RESULT_TOTAL'])}  
-    """)
-
-    # =============================
-    # 12) GRÁFICO LIMPO LINHA DO RESULTADO
-    # =============================
-    graf = base.sort_values(["ANO", "MÊS_NUM"])
-
-    fig = px.line(
-        graf,
-        x="MÊS_NUM",
-        y="RESULT",
-        color="ANO",
-        markers=True,
-        title="Linha do Resultado (2024 x 2025)",
-        labels={"MÊS_NUM": "Mês", "RESULT": "Resultado (R$)"}
+    fat_group = (
+        fat.groupby(["ANO", "MES_NUM"])["FATURAMENTO - VALOR"]
+        .sum()
+        .reset_index()
+        .rename(columns={"FATURAMENTO - VALOR": "FATURAMENTO"})
     )
 
-    fig.update_layout(
-        yaxis_tickformat=",",
-        legend_title_text="Ano",
-        height=450
+    desp_group = (
+        desp.groupby(["ANO", "MES_NUM"])["VALOR"]
+        .sum()
+        .reset_index()
+        .rename(columns={"VALOR": "DESPESA"})
     )
 
-    # Formatar números como R$
-    fig.update_traces(
-        hovertemplate="R$ %{y:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    )
+    # =============================
+    # 4) CRIAR BASE
+    # =============================
+    meses = range(1, 13)
+    anos = [2024, 2025]
 
-    st.plotly_chart(fig, use_container_width=True)
+    base = pd.MultiIndex.from_product([anos, meses], names=["ANO", "MES_NUM"])
+    base = pd.DataFrame(index=base).reset_index()
+
+    base = base.merge(fat_group, on=["ANO", "MES_NUM"], how="left")
+    base = base.merge(desp_group, on=["ANO", "MES_NUM"], how="left")
+
+    base["FATURAMENTO"] = base["FATURAMENTO"].fillna(0)
+    base["DESPESA"] = base["DESPESA"].fillna(0)
+
+    # =============================
+    # 5) SEPARAR ANOS
+    # =============================
+    fat24 = base[base["ANO"] == 2024].set_index("MES_NUM")
+    fat25 = base[base["ANO"] == 2025].set_index("MES_NUM")
+
+    # =============================
+    # 6) CRIAR TABELA YOY
+    # =============================
+    tabela = pd.DataFrame()
+    tabela["Mês"] = list(meses)
+
+    tabela["Fat 2024"] = fat24["FATURAMENTO"].values
+    tabela["Fat 2025"] = fat25["FATURAMENTO"].values
+
+    tabela["Desp 2024"] = fat24["DESPESA"].values
+    tabela["Desp 2025"] = fat25["DESPESA"].values
+
+    tabela["Res 2024"] = tabela["Fat 2024"] - tabela["Desp 2024"]
+    tabela["Res 2025"] = tabela["Fat 2025"] - tabela["Desp 2025"]
+
+    tabela["Margem 2024"] = (tabela["Res 2024"] / tabela["Fat 2024"].replace(0, pd.NA)) * 100
+    tabela["Margem 2025"] = (tabela["Res 2025"] / tabela["Fat 2025"].replace(0, pd.NA)) * 100
+
+    # =============================
+    # 7) SOMATÓRIO PARA CARDS
+    # =============================
+    total_fat_24 = tabela["Fat 2024"].sum()
+    total_fat_25 = tabela["Fat 2025"].sum()
+
+    total_desp_24 = tabela["Desp 2024"].sum()
+    total_desp_25 = tabela["Desp 2025"].sum()
+
+    total_res_24 = total_fat_24 - total_desp_24
+    total_res_25 = total_fat_25 - total_desp_25
+
+    # =============================
+    # 8) CARDS CORPORATIVOS
+    # =============================
+    st.markdown("## 📌 Visão Geral do Ano")
+
+    def card(titulo, valor, cor):
+        st.markdown(
+            f"""
+            <div style="
+                background-color:{cor};
+                padding:20px;
+                border-radius:12px;
+                color:white;
+                font-size:22px;
+                margin-bottom:10px;">
+                <strong>{titulo}</strong><br>
+                <span style="font-size:30px;">R$ {valor:,.0f}</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    colA, colB, colC = st.columns(3)
+    colA.markdown("### 🔵 Ano 2024")
+    colA.card = card("Faturamento 2024", total_fat_24, "#005BBB")
+    colA.card = card("Despesas 2024", total_desp_24, "#C00000")
+    colA.card = card("Resultado 2024", total_res_24, "#228B22")
+
+    colB.markdown("### 🟣 Ano 2025")
+    colB.card = card("Faturamento 2025", total_fat_25, "#5A2CA0")
+    colB.card = card("Despesas 2025", total_desp_25, "#800000")
+    colB.card = card("Resultado 2025", total_res_25, "#1E8449")
+
+    colC.markdown("### 📈 Diferença")
+    colC.card = card("Crescimento Faturamento", total_fat_25 - total_fat_24, "#0F6CBD")
+    colC.card = card("Crescimento Resultado", total_res_25 - total_res_24, "#117A65")
+
+    # =============================
+    # 9) TABELA FINAL (SEM ALTERAÇÕES)
+    # =============================
+    st.subheader("📄 Tabela Comparativa")
+    st.dataframe(tabela, use_container_width=True)
+
+    # =============================
+    # 10) GRÁFICOS
+    # =============================
+    st.subheader("📈 Faturamento – 2024 x 2025")
+    st.line_chart(tabela[["Fat 2024", "Fat 2025"]])
+
+    st.subheader("💸 Despesas – 2024 x 2025")
+    st.line_chart(tabela[["Desp 2024", "Desp 2025"]])
+
+    st.subheader("📉 Resultado – 2024 x 2025")
+    st.line_chart(tabela[["Res 2024", "Res 2025"]])
