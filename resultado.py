@@ -4,7 +4,7 @@ import plotly.express as px
 
 def render():
 
-    st.header("📈 Comparativo Faturamento, Despesas e Resultado")
+    st.header("📊 Comparativo Faturamento, Despesas e Resultado")
 
     # =============================
     # 1) CARREGAR PLANILHAS
@@ -13,123 +13,108 @@ def render():
     df_desp = pd.read_excel("despesas_2024_2025.xlsx")
 
     # =============================
-    # 2) PADRONIZAR NOMES DAS COLUNAS
+    # 2) AJUSTAR COLUNAS
     # =============================
-    df_fat.columns = df_fat.columns.astype(str).str.strip()
-    df_desp.columns = df_desp.columns.astype(str).str.strip()
+    df_fat.columns = df_fat.columns.str.strip()
+    df_desp.columns = df_desp.columns.str.strip()
 
-    # =============================
-    # 3) AJUSTAR DADOS FATURAMENTO
-    # =============================
     df_fat["Ano"] = df_fat["Ano"].astype(int)
-    df_fat["MÊS_NUM"] = df_fat["Mês"].str[:2].astype(int)
-
-    # =============================
-    # 4) AJUSTAR DADOS DESPESAS
-    # =============================
     df_desp["ANO"] = df_desp["ANO"].astype(int)
-    df_desp["MÊS_NUM"] = df_desp["MÊS"].str[:2].astype(int)
+
+    df_fat["MES_NUM"] = df_fat["Mês"].str[:2].astype(int)
+    df_desp["MES_NUM"] = df_desp["MÊS"].str[:2].astype(int)
 
     # =============================
-    # 5) AGRUPAR POR ANO/MÊS
+    # 3) AGRUPAMENTOS
     # =============================
-    tabela_fat = df_fat.groupby(["Ano", "MÊS_NUM"])["Faturamento - Valor"].sum().reset_index()
-    tabela_desp = df_desp.groupby(["ANO", "MÊS_NUM"])["VALOR"].sum().reset_index()
+    fat_ano = df_fat.groupby("Ano")["Faturamento - Valor"].sum()
+    desp_ano = df_desp.groupby("ANO")["VALOR"].sum()
 
-    tabela_fat.rename(columns={"Ano": "ANO", "Faturamento - Valor": "FAT"}, inplace=True)
-    tabela_desp.rename(columns={"VALOR": "DESP"}, inplace=True)
+    total_fat_24 = fat_ano.get(2024, 0)
+    total_fat_25 = fat_ano.get(2025, 0)
+    total_desp_24 = desp_ano.get(2024, 0)
+    total_desp_25 = desp_ano.get(2025, 0)
 
-    # =============================
-    # 6) JUNTAR TABELAS
-    # =============================
-    base = pd.merge(tabela_fat, tabela_desp, on=["ANO", "MÊS_NUM"], how="outer")
-    base["DESP"] = base["DESP"].fillna(0)
-    base["RESULT"] = base["FAT"] - base["DESP"]
+    total_res_24 = total_fat_24 - total_desp_24
+    total_res_25 = total_fat_25 - total_desp_25
 
     # =============================
-    # 7) SEPARAR 2024 E 2025
+    # 4) FUNÇÃO PARA CARDS CORPORATIVOS
     # =============================
-    df24 = base[base["ANO"] == 2024].sort_values("MÊS_NUM")
-    df25 = base[base["ANO"] == 2025].sort_values("MÊS_NUM")
+    def card_pequeno(titulo, valor, cor_fundo, icone=""):
+        return f"""
+            <div style="
+                background-color:{cor_fundo};
+                padding:14px 18px;
+                border-radius:10px;
+                color:white;
+                font-size:16px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+                margin-bottom:8px;">
+                
+                <div style="font-weight:600; opacity:0.85;">
+                    {icone} {titulo}
+                </div>
 
-    # =============================
-    # 8) FORMATAR R$ PARA TABELAS
-    # =============================
-    def fmt(valor):
-        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-    df24_fmt = df24.copy()
-    df25_fmt = df25.copy()
-
-    for col in ["FAT", "DESP", "RESULT"]:
-        df24_fmt[col] = df24[col].apply(fmt)
-        df25_fmt[col] = df25[col].apply(fmt)
-
-    # =============================
-    # 9) SOMATÓRIO FINAL DAS TABELAS
-    # =============================
-    soma_24 = {
-        "FAT_TOTAL": df24["FAT"].sum(),
-        "DESP_TOTAL": df24["DESP"].sum(),
-        "RESULT_TOTAL": df24["RESULT"].sum()
-    }
-
-    soma_25 = {
-        "FAT_TOTAL": df25["FAT"].sum(),
-        "DESP_TOTAL": df25["DESP"].sum(),
-        "RESULT_TOTAL": df25["RESULT"].sum()
-    }
+                <div style="font-size:22px; font-weight:700; margin-top:6px;">
+                    R$ {valor:,.0f}
+                </div>
+            </div>
+        """
 
     # =============================
-    # 10) MOSTRAR TABELA 2024
+    # 5) CARDS EM 3 COLUNAS
     # =============================
-    st.subheader("📄 Resultado 2024")
-    st.dataframe(df24_fmt, use_container_width=True)
+    st.markdown("## 📌 Visão Geral do Ano")
 
-    st.markdown(f"""
-    ### **Totais 2024**
-    • **Faturamento:** {fmt(soma_24['FAT_TOTAL'])}  
-    • **Despesas:** {fmt(soma_24['DESP_TOTAL'])}  
-    • **Resultado:** {fmt(soma_24['RESULT_TOTAL'])}  
-    """)
+    colA, colB, colC = st.columns(3)
+
+    # --- COLUNA 2024 ---
+    with colA:
+        st.markdown("### 🔵 2024")
+        st.markdown(card_pequeno("Faturamento", total_fat_24, "#005BBB", "💰"), unsafe_allow_html=True)
+        st.markdown(card_pequeno("Despesas", total_desp_24, "#B30000", "📉"), unsafe_allow_html=True)
+        st.markdown(card_pequeno("Resultado", total_res_24, "#1E7B34", "📊"), unsafe_allow_html=True)
+
+    # --- COLUNA 2025 ---
+    with colB:
+        st.markdown("### 🟣 2025")
+        st.markdown(card_pequeno("Faturamento", total_fat_25, "#6A0DAD", "💰"), unsafe_allow_html=True)
+        st.markdown(card_pequeno("Despesas", total_desp_25, "#900000", "📉"), unsafe_allow_html=True)
+        st.markdown(card_pequeno("Resultado", total_res_25, "#2D8F4E", "📊"), unsafe_allow_html=True)
+
+    # --- DIFERENÇAS ---
+    with colC:
+        st.markdown("### 📈 Diferença")
+        st.markdown(card_pequeno("Crescimento Faturamento", total_fat_25 - total_fat_24, "#0F6CBD", "📈"), unsafe_allow_html=True)
+        st.markdown(card_pequeno("Crescimento Resultado", total_res_25 - total_res_24, "#0F8F6C", "📈"), unsafe_allow_html=True)
 
     # =============================
-    # 11) MOSTRAR TABELA 2025
+    # 6) TABELAS MENSAL (igual estava antes)
     # =============================
-    st.subheader("📄 Resultado 2025")
-    st.dataframe(df25_fmt, use_container_width=True)
+    st.subheader("📄 Tabelas Comparativas")
 
-    st.markdown(f"""
-    ### **Totais 2025**
-    • **Faturamento:** {fmt(soma_25['FAT_TOTAL'])}  
-    • **Despesas:** {fmt(soma_25['DESP_TOTAL'])}  
-    • **Resultado:** {fmt(soma_25['RESULT_TOTAL'])}  
-    """)
+    # --- Faturamento Mensal ---
+    tabela_fat = df_fat.pivot_table(index="Mês", columns="Ano", values="Faturamento - Valor", aggfunc="sum").reset_index()
+    st.markdown("### 📘 Faturamento Mensal")
+    st.dataframe(tabela_fat, use_container_width=True)
 
-    # =============================
-    # 12) GRÁFICO LIMPO LINHA DO RESULTADO
-    # =============================
-    graf = base.sort_values(["ANO", "MÊS_NUM"])
+    # --- Despesas Mensais ---
+    tabela_desp = df_desp.pivot_table(index="MÊS", columns="ANO", values="VALOR", aggfunc="sum").reset_index()
+    st.markdown("### 📕 Despesas Mensais")
+    st.dataframe(tabela_desp, use_container_width=True)
 
-    fig = px.line(
-        graf,
-        x="MÊS_NUM",
-        y="RESULT",
-        color="ANO",
-        markers=True,
-        title="Linha do Resultado (2024 x 2025)",
-        labels={"MÊS_NUM": "Mês", "RESULT": "Resultado (R$)"}
-    )
+    # --- Resultado Mensal ---
+    tabela_res = pd.DataFrame({
+        "Mês": tabela_fat["Mês"],
+        "Faturamento 2024": tabela_fat.get(2024, 0),
+        "Despesas 2024": tabela_desp.get(2024, 0),
+        "Resultado 2024": tabela_fat.get(2024, 0) - tabela_desp.get(2024, 0),
+        "Faturamento 2025": tabela_fat.get(2025, 0),
+        "Despesas 2025": tabela_desp.get(2025, 0),
+        "Resultado 2025": tabela_fat.get(2025, 0) - tabela_desp.get(2025, 0),
+    })
 
-    fig.update_layout(
-        yaxis_tickformat=",",
-        legend_title_text="Ano",
-        height=450
-    )
+    st.markdown("### 📗 Resultado Mensal")
+    st.dataframe(tabela_res, use_container_width=True)
 
-    # Formatar números como R$
-    fig.update_traces(
-        hovertemplate="R$ %{y:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
