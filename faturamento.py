@@ -58,7 +58,7 @@ def render():
         bargap=0.10,              # espaço entre grupos
         bargroupgap=0.05,         # espaço entre barras do mesmo grupo
         title="Comparativo Mensal",
-        title_x=2.0,
+        title_x=2,
         yaxis_title="Faturamento",
         height=600
     )
