@@ -93,41 +93,55 @@ def render():
     total_res_25 = total_fat_25 - total_desp_25
 
     # =============================
-    # 8) CARDS CORPORATIVOS
-    # =============================
-    st.markdown("## 📌 Visão Geral do Ano")
+# 8) CARDS CORPORATIVOS – VERSÃO COMPACTA
+# =============================
 
-    def card(titulo, valor, cor):
-        st.markdown(
-            f"""
-            <div style="
-                background-color:{cor};
-                padding:20px;
-                border-radius:12px;
-                color:white;
-                font-size:22px;
-                margin-bottom:10px;">
-                <strong>{titulo}</strong><br>
-                <span style="font-size:30px;">R$ {valor:,.0f}</span>
+st.markdown("## 📌 Visão Geral do Ano")
+
+def card_pequeno(titulo, valor, cor_fundo, icone=""):
+    return f"""
+        <div style="
+            background-color:{cor_fundo};
+            padding:14px 18px;
+            border-radius:10px;
+            color:white;
+            font-size:16px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            margin-bottom:8px;">
+            
+            <div style="font-weight:600; opacity:0.85;">
+                {icone} {titulo}
             </div>
-            """,
-            unsafe_allow_html=True
-        )
 
-    colA, colB, colC = st.columns(3)
-    colA.markdown("### 🔵 Ano 2024")
-    colA.card = card("Faturamento 2024", total_fat_24, "#005BBB")
-    colA.card = card("Despesas 2024", total_desp_24, "#C00000")
-    colA.card = card("Resultado 2024", total_res_24, "#228B22")
+            <div style="font-size:22px; font-weight:700; margin-top:6px;">
+                R$ {valor:,.0f}
+            </div>
+        </div>
+    """
 
-    colB.markdown("### 🟣 Ano 2025")
-    colB.card = card("Faturamento 2025", total_fat_25, "#5A2CA0")
-    colB.card = card("Despesas 2025", total_desp_25, "#800000")
-    colB.card = card("Resultado 2025", total_res_25, "#1E8449")
 
-    colC.markdown("### 📈 Diferença")
-    colC.card = card("Crescimento Faturamento", total_fat_25 - total_fat_24, "#0F6CBD")
-    colC.card = card("Crescimento Resultado", total_res_25 - total_res_24, "#117A65")
+colA, colB, colC = st.columns(3)
+
+# --- COLUNA 2024 ---
+with colA:
+    st.markdown("### 🔵 2024")
+    st.markdown(card_pequeno("Faturamento", total_fat_24, "#005BBB", "💰"), unsafe_allow_html=True)
+    st.markdown(card_pequeno("Despesas", total_desp_24, "#B30000", "📉"), unsafe_allow_html=True)
+    st.markdown(card_pequeno("Resultado", total_res_24, "#1E7B34", "📊"), unsafe_allow_html=True)
+
+# --- COLUNA 2025 ---
+with colB:
+    st.markdown("### 🟣 2025")
+    st.markdown(card_pequeno("Faturamento", total_fat_25, "#6A0DAD", "💰"), unsafe_allow_html=True)
+    st.markdown(card_pequeno("Despesas", total_desp_25, "#900000", "📉"), unsafe_allow_html=True)
+    st.markdown(card_pequeno("Resultado", total_res_25, "#2D8F4E", "📊"), unsafe_allow_html=True)
+
+# --- DIFERENÇAS ---
+with colC:
+    st.markdown("### 📈 Diferença")
+    st.markdown(card_pequeno("Crescimento Faturamento", total_fat_25 - total_fat_24, "#0F6CBD", "📈"), unsafe_allow_html=True)
+    st.markdown(card_pequeno("Crescimento Resultado", total_res_25 - total_res_24, "#0F8F6C", "📈"), unsafe_allow_html=True)
+
 
     # =============================
     # 9) TABELA FINAL (SEM ALTERAÇÕES)
