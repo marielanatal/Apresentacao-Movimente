@@ -40,7 +40,7 @@ def render():
         marker_color="#FF8C00",
         text=label_2024,
         textposition="outside",
-        textfont=dict(size=60)
+        textfont=dict(size=18)
     ))
 
     fig.add_trace(go.Bar(
@@ -50,7 +50,7 @@ def render():
         marker_color="#005BBB",
         text=label_2025,
         textposition="outside",
-        textfont=dict(size=18)
+        textfont=dict(size=60)
     ))
 
     fig.update_layout(
