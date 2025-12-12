@@ -55,10 +55,10 @@ def render():
 
     fig.update_layout(
         barmode="group",          # GARANTE LADO A LADO FORÇADO
-        bargap=0.40,              # espaço entre grupos
-        bargroupgap=0.2,         # espaço entre barras do mesmo grupo
+        bargap=0.10,              # espaço entre grupos
+        bargroupgap=0.05,         # espaço entre barras do mesmo grupo
         title="Comparativo Mensal",
-        title_x=0.5,
+        title_x=2.0,
         yaxis_title="Faturamento",
         height=600
     )
