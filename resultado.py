@@ -103,3 +103,4 @@ def render():
 
     st.markdown("### 📗 Resultado Mensal")
     st.dataframe(tabela_res, use_container_width=True)
+
