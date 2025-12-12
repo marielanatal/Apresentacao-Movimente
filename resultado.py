@@ -4,7 +4,7 @@ import plotly.express as px
 
 def render():
 
-    st.header("📊 Comparativo Faturamento, Despesas e Resultado")
+    st.header("📈 Comparativo Faturamento, Despesas e Resultado")
 
     # =============================
     # 1) CARREGAR PLANILHAS
@@ -13,86 +13,123 @@ def render():
     df_desp = pd.read_excel("despesas_2024_2025.xlsx")
 
     # =============================
-    # 2) PADRONIZAR COLUNAS
+    # 2) PADRONIZAR NOMES DAS COLUNAS
     # =============================
-    df_fat.columns = df_fat.columns.str.strip()
-    df_desp.columns = df_desp.columns.str.strip()
+    df_fat.columns = df_fat.columns.astype(str).str.strip()
+    df_desp.columns = df_desp.columns.astype(str).str.strip()
 
+    # =============================
+    # 3) AJUSTAR DADOS FATURAMENTO
+    # =============================
     df_fat["Ano"] = df_fat["Ano"].astype(int)
+    df_fat["MÊS_NUM"] = df_fat["Mês"].str[:2].astype(int)
+
+    # =============================
+    # 4) AJUSTAR DADOS DESPESAS
+    # =============================
     df_desp["ANO"] = df_desp["ANO"].astype(int)
-
-    # Converter valores que vêm como texto
-    df_fat["Faturamento - Valor"] = (
-        df_fat["Faturamento - Valor"]
-        .astype(str)
-        .str.replace(".", "")
-        .str.replace(",", ".")
-        .astype(float)
-    )
-
-    df_desp["VALOR"] = (
-        df_desp["VALOR"]
-        .astype(str)
-        .str.replace(".", "")
-        .str.replace(",", ".")
-        .astype(float)
-    )
+    df_desp["MÊS_NUM"] = df_desp["MÊS"].str[:2].astype(int)
 
     # =============================
-    # 3) EXTRAIR Nº DO MÊS
+    # 5) AGRUPAR POR ANO/MÊS
     # =============================
-    df_fat["MES_NUM"] = df_fat["Mês"].str[:2].astype(int)
-    df_desp["MES_NUM"] = df_desp["MÊS"].str[:2].astype(int)
+    tabela_fat = df_fat.groupby(["Ano", "MÊS_NUM"])["Faturamento - Valor"].sum().reset_index()
+    tabela_desp = df_desp.groupby(["ANO", "MÊS_NUM"])["VALOR"].sum().reset_index()
+
+    tabela_fat.rename(columns={"Ano": "ANO", "Faturamento - Valor": "FAT"}, inplace=True)
+    tabela_desp.rename(columns={"VALOR": "DESP"}, inplace=True)
 
     # =============================
-    # 4) AGRUPAR FATURAMENTO E DESPESAS
+    # 6) JUNTAR TABELAS
     # =============================
-    fat_mensal = df_fat.groupby(["Ano", "MES_NUM"])["Faturamento - Valor"].sum()
-    desp_mensal = df_desp.groupby(["ANO", "MES_NUM"])["VALOR"].sum()
+    base = pd.merge(tabela_fat, tabela_desp, on=["ANO", "MÊS_NUM"], how="outer")
+    base["DESP"] = base["DESP"].fillna(0)
+    base["RESULT"] = base["FAT"] - base["DESP"]
 
     # =============================
-    # 5) CRIAR TABELA RESULTADO
+    # 7) SEPARAR 2024 E 2025
     # =============================
-    resultado = pd.DataFrame({
-        "FAT_2024": fat_mensal.loc[2024],
-        "DESP_2024": desp_mensal.loc[2024],
-        "RES_2024": fat_mensal.loc[2024] - desp_mensal.loc[2024],
-
-        "FAT_2025": fat_mensal.loc[2025],
-        "DESP_2025": desp_mensal.loc[2025],
-        "RES_2025": fat_mensal.loc[2025] - desp_mensal.loc[2025],
-    })
+    df24 = base[base["ANO"] == 2024].sort_values("MÊS_NUM")
+    df25 = base[base["ANO"] == 2025].sort_values("MÊS_NUM")
 
     # =============================
-    # 6) FORMATAR TABELA PARA EXIBIÇÃO
+    # 8) FORMATAR R$ PARA TABELAS
     # =============================
-    def fmt(v):
-        return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    def fmt(valor):
+        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-    tabela_fmt = resultado.copy()
-    for col in tabela_fmt.columns:
-        tabela_fmt[col] = tabela_fmt[col].apply(fmt)
+    df24_fmt = df24.copy()
+    df25_fmt = df25.copy()
 
-    st.subheader("📄 Resultado Financeiro por Mês")
-    st.dataframe(tabela_fmt, use_container_width=True)
+    for col in ["FAT", "DESP", "RESULT"]:
+        df24_fmt[col] = df24[col].apply(fmt)
+        df25_fmt[col] = df25[col].apply(fmt)
 
     # =============================
-    # 7) GRÁFICO MELHORADO (RESULTADO)
+    # 9) SOMATÓRIO FINAL DAS TABELAS
     # =============================
-    resultado_plot = resultado.reset_index().rename(columns={"index": "Mês"})
+    soma_24 = {
+        "FAT_TOTAL": df24["FAT"].sum(),
+        "DESP_TOTAL": df24["DESP"].sum(),
+        "RESULT_TOTAL": df24["RESULT"].sum()
+    }
+
+    soma_25 = {
+        "FAT_TOTAL": df25["FAT"].sum(),
+        "DESP_TOTAL": df25["DESP"].sum(),
+        "RESULT_TOTAL": df25["RESULT"].sum()
+    }
+
+    # =============================
+    # 10) MOSTRAR TABELA 2024
+    # =============================
+    st.subheader("📄 Resultado 2024")
+    st.dataframe(df24_fmt, use_container_width=True)
+
+    st.markdown(f"""
+    ### **Totais 2024**
+    • **Faturamento:** {fmt(soma_24['FAT_TOTAL'])}  
+    • **Despesas:** {fmt(soma_24['DESP_TOTAL'])}  
+    • **Resultado:** {fmt(soma_24['RESULT_TOTAL'])}  
+    """)
+
+    # =============================
+    # 11) MOSTRAR TABELA 2025
+    # =============================
+    st.subheader("📄 Resultado 2025")
+    st.dataframe(df25_fmt, use_container_width=True)
+
+    st.markdown(f"""
+    ### **Totais 2025**
+    • **Faturamento:** {fmt(soma_25['FAT_TOTAL'])}  
+    • **Despesas:** {fmt(soma_25['DESP_TOTAL'])}  
+    • **Resultado:** {fmt(soma_25['RESULT_TOTAL'])}  
+    """)
+
+    # =============================
+    # 12) GRÁFICO LIMPO LINHA DO RESULTADO
+    # =============================
+    graf = base.sort_values(["ANO", "MÊS_NUM"])
 
     fig = px.line(
-        resultado_plot,
-        x="Mês",
-        y=["RES_2024", "RES_2025"],
+        graf,
+        x="MÊS_NUM",
+        y="RESULT",
+        color="ANO",
         markers=True,
-        title="📈 Evolução do Resultado (Lucro Líquido)"
+        title="Linha do Resultado (2024 x 2025)",
+        labels={"MÊS_NUM": "Mês", "RESULT": "Resultado (R$)"}
     )
 
     fig.update_layout(
-        yaxis_tickformat="R$,.0f",
+        yaxis_tickformat=",",
         legend_title_text="Ano",
-        height=500
+        height=450
+    )
+
+    # Formatar números como R$
+    fig.update_traces(
+        hovertemplate="R$ %{y:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     )
 
     st.plotly_chart(fig, use_container_width=True)
