@@ -74,81 +74,81 @@ def render():
     }
 
     # =============================
-    # 🔷🔷🔷 10) CARDS CORPORATIVOS NO TOPO
-    # =============================
+# 🔷🔷🔷 10) CARDS CORPORATIVOS CORRIGIDOS
+# =============================
 
-    st.markdown("## 📌 Visão Geral do Ano")
+st.markdown("## 📌 Visão Geral do Ano")
 
-    col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns(3)
 
-    # -------- CARD 2024 --------
-    with col1:
-        st.markdown(f"""
-        <div style="
-            background-color:#0A66C2;
-            padding:18px;
-            border-radius:12px;
-            color:white;
-            box-shadow:0 2px 8px rgba(0,0,0,0.15);
-        ">
-            <h4 style="margin:0;">Ano 2024</h4>
+# -------- CARD 2024 --------
+with col1:
+    st.markdown(f"""
+    <div style="
+        background-color:#0A66C2;
+        padding:20px;
+        border-radius:12px;
+        color:white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.15);
+    ">
+        <h3 style="margin-top:0; font-size:22px;">Ano 2024</h3>
 
-            <p style="margin:6px 0 0;">📈 Faturamento</p>
-            <b style="font-size:22px;">{fmt(soma_24['FAT_TOTAL'])}</b>
+        <p style="margin:6px 0 0;">📈 Faturamento</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_24['FAT_TOTAL'])}</b></p>
 
-            <p style="margin:10px 0 0;">💸 Despesas</p>
-            <b style="font-size:22px;">{fmt(soma_24['DESP_TOTAL'])}</b>
+        <p style="margin:10px 0 0;">💸 Despesas</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_24['DESP_TOTAL'])}</b></p>
 
-            <p style="margin:10px 0 0;">💰 Resultado</p>
-            <b style="font-size:22px;">{fmt(soma_24['RESULT_TOTAL'])}</b>
-        </div>
-        """, unsafe_allow_html=True)
+        <p style="margin:10px 0 0;">💰 Resultado</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_24['RESULT_TOTAL'])}</b></p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # -------- CARD 2025 --------
-    with col2:
-        st.markdown(f"""
-        <div style="
-            background-color:#6F42C1;
-            padding:18px;
-            border-radius:12px;
-            color:white;
-            box-shadow:0 2px 8px rgba(0,0,0,0.15);
-        ">
-            <h4 style="margin:0;">Ano 2025</h4>
+# -------- CARD 2025 --------
+with col2:
+    st.markdown(f"""
+    <div style="
+        background-color:#6F42C1;
+        padding:20px;
+        border-radius:12px;
+        color:white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.15);
+    ">
+        <h3 style="margin-top:0; font-size:22px;">Ano 2025</h3>
 
-            <p style="margin:6px 0 0;">📈 Faturamento</p>
-            <b style="font-size:22px;">{fmt(soma_25['FAT_TOTAL'])}</b>
+        <p style="margin:6px 0 0;">📈 Faturamento</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_25['FAT_TOTAL'])}</b></p>
 
-            <p style="margin:10px 0 0;">💸 Despesas</p>
-            <b style="font-size:22px;">{fmt(soma_25['DESP_TOTAL'])}</b>
+        <p style="margin:10px 0 0;">💸 Despesas</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_25['DESP_TOTAL'])}</b></p>
 
-            <p style="margin:10px 0 0;">💰 Resultado</p>
-            <b style="font-size:22px;">{fmt(soma_25['RESULT_TOTAL'])}</b>
-        </div>
-        """, unsafe_allow_html=True)
+        <p style="margin:10px 0 0;">💰 Resultado</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_25['RESULT_TOTAL'])}</b></p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # -------- CARD DIFERENÇA --------
-    with col3:
-        st.markdown(f"""
-        <div style="
-            background-color:#0B5E55;
-            padding:18px;
-            border-radius:12px;
-            color:white;
-            box-shadow:0 2px 8px rgba(0,0,0,0.15);
-        ">
-            <h4 style="margin:0;">Variação</h4>
+# -------- CARD VARIAÇÃO --------
+with col3:
+    st.markdown(f"""
+    <div style="
+        background-color:#0B5E55;
+        padding:20px;
+        border-radius:12px;
+        color:white;
+        box-shadow:0 2px 8px rgba(0,0,0,0.15);
+    ">
+        <h3 style="margin-top:0; font-size:22px;">Variação</h3>
 
-            <p style="margin:6px 0 0;">📊 Faturamento</p>
-            <b style="font-size:22px;">{fmt(soma_25['FAT_TOTAL'] - soma_24['FAT_TOTAL'])}</b>
+        <p style="margin:6px 0 0;">📊 Faturamento</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_25['FAT_TOTAL'] - soma_24['FAT_TOTAL'])}</b></p>
 
-            <p style="margin:10px 0 0;">📊 Despesas</p>
-            <b style="font-size:22px;">{fmt(soma_25['DESP_TOTAL'] - soma_24['DESP_TOTAL'])}</b>
+        <p style="margin:10px 0 0;">📊 Despesas</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_25['DESP_TOTAL'] - soma_24['DESP_TOTAL'])}</b></p>
 
-            <p style="margin:10px 0 0;">📊 Resultado</p>
-            <b style="font-size:22px;">{fmt(soma_25['RESULT_TOTAL'] - soma_24['RESULT_TOTAL'])}</b>
-        </div>
-        """, unsafe_allow_html=True)
+        <p style="margin:10px 0 0;">📊 Resultado</p>
+        <p style="font-size:24px; margin:0;"><b>{fmt(soma_25['RESULT_TOTAL'] - soma_24['RESULT_TOTAL'])}</b></p>
+    </div>
+    """, unsafe_allow_html=True)
 
     # =============================
     # 11) TABELA 2024
