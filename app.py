@@ -26,4 +26,3 @@ elif pagina == "Resultado":
 elif pagina == "🧾 Resultado e Margens":
     resultado.render()
 
-
