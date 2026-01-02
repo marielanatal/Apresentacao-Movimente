@@ -1,3 +1,4 @@
+raise Exception("ESTE É O APP CORRETO")
 import streamlit as st
 import faturamento
 import despesas
